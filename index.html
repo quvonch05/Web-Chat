@@ -1,0 +1,997 @@
+Senior darajadagi interfeysga professional Ovozli xabar yozish (Audio Recorder + vaqt indikatori + play/pause pleyer) va Fayl/Rasm biriktirish (Preview modal bilan) funksiyalarini to'liq qo'shib, kodni yanada boyitdim.
+Endi composer (xabar yozish) qismida yangi tugmalar paydo bo'ldi:
+ * 📎 (Fayl biriktirish): Istalgan rasm yoki hujjatni tanlab, oldindan ko'rish (preview) bilan birga yuborish mumkin.
+ * 🎙️ (Ovozli xabar): Mikrofondan ovoz yozib, sekundomer hisoblagichi bilan chatga audio xabar sifatida yuborish imkoniyati (MediaRecorder API orqali ishlaydi).
+To'liq va Yangilangan index.html kodi:
+<!DOCTYPE html>
+<html lang="uz" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>TeleWe Pro — Senior Messenger Workspace (Voice & Files)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #05070b;
+      --bg-rail: #090d16;
+      --bg-sidebar: rgba(13, 18, 28, 0.88);
+      --bg-chat: #070a12;
+      --bg-surface: rgba(30, 41, 59, 0.45);
+      --bg-surface-hover: rgba(51, 65, 85, 0.55);
+      --border: rgba(255, 255, 255, 0.07);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.35);
+      --wechat-green: #07c160;
+      --secret-emerald: #10b981;
+      --secret-bg: rgba(16, 185, 129, 0.12);
+      --bubble-own: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      --bubble-other: #131b2e;
+      --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --smooth: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    [data-theme="light"] {
+      --bg-base: #f1f5f9;
+      --bg-rail: #1e293b;
+      --bg-sidebar: rgba(255, 255, 255, 0.92);
+      --bg-chat: #e2e8f0;
+      --bg-surface: rgba(241, 245, 249, 0.85);
+      --bg-surface-hover: rgba(226, 232, 240, 0.9);
+      --border: rgba(15, 23, 42, 0.08);
+      --text-main: #0f172a;
+      --text-sub: #64748b;
+      --bubble-own: linear-gradient(135deg, #07c160 0%, #059669 100%);
+      --bubble-other: #ffffff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background: var(--bg-base); color: var(--text-main); height: 100dvh; overflow: hidden; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.2); border-radius: 99px; }
+
+    .app-layout { display: flex; height: 100dvh; width: 100vw; position: relative; }
+
+    /* RAILWAY */
+    .nav-rail {
+      width: 72px; background: var(--bg-rail); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center; padding: 18px 0; gap: 16px; z-index: 30;
+    }
+    .rail-avatar {
+      width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center;
+      font-weight: 800; color: #fff; background: var(--accent); cursor: pointer; position: relative;
+      box-shadow: 0 8px 20px var(--accent-glow); transition: transform 0.3s var(--spring);
+    }
+    .rail-avatar:hover { transform: scale(1.08); }
+    .rail-avatar::after {
+      content: ''; position: absolute; bottom: -2px; right: -2px; width: 12px; height: 12px;
+      background: var(--wechat-green); border: 2px solid var(--bg-rail); border-radius: 50%;
+    }
+    .rail-btn {
+      width: 46px; height: 46px; border-radius: 14px; border: none; background: transparent;
+      color: var(--text-sub); font-size: 1.25rem; cursor: pointer; display: grid; place-items: center;
+      position: relative; transition: all 0.25s var(--spring);
+    }
+    .rail-btn:hover { background: rgba(255,255,255,0.08); color: #fff; transform: translateY(-2px); }
+    .rail-btn.active { background: var(--accent); color: #fff; box-shadow: 0 8px 20px var(--accent-glow); }
+    .rail-btn.secret-rail.active { background: var(--secret-emerald); box-shadow: 0 8px 20px rgba(16,185,129,0.35); }
+    .rail-spacer { flex: 1; }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 360px; background: var(--bg-sidebar); backdrop-filter: blur(24px);
+      border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 20;
+      transition: transform 0.35s var(--smooth);
+    }
+    .sidebar-top { padding: 18px 20px 12px; display: flex; align-items: center; justify-content: space-between; }
+    .logo-box { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.2rem; }
+    .new-chat-fab {
+      background: var(--accent); color: #fff; border: none; padding: 8px 14px; border-radius: 12px;
+      font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;
+      box-shadow: 0 6px 18px var(--accent-glow); transition: transform 0.25s var(--spring);
+    }
+    .new-chat-fab:hover { transform: scale(1.04); }
+
+    .stories-row { display: flex; gap: 12px; padding: 8px 20px 14px; overflow-x: auto; border-bottom: 1px solid var(--border); }
+    .story-card { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; flex-shrink: 0; }
+    .story-ring {
+      width: 52px; height: 52px; border-radius: 50%; padding: 2.5px;
+      background: linear-gradient(45deg, #6366f1, #10b981, #ec4899);
+      transition: transform 0.3s var(--spring);
+    }
+    .story-card:hover .story-ring { transform: scale(1.08) rotate(4deg); }
+    .story-inner {
+      width: 100%; height: 100%; border-radius: 50%; background: var(--bg-rail); border: 2px solid var(--bg-base);
+      display: grid; place-items: center; font-weight: 700; font-size: 0.9rem; color: #fff;
+    }
+    .story-title { font-size: 0.7rem; color: var(--text-sub); max-width: 56px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .search-wrap { padding: 12px 18px 6px; position: relative; }
+    .search-wrap input {
+      width: 100%; padding: 11px 14px 11px 38px; border-radius: 14px; border: 1px solid var(--border);
+      background: var(--bg-surface); color: var(--text-main); font-size: 0.86rem; outline: none; transition: 0.2s;
+    }
+    .search-wrap input:focus { border-color: var(--accent); background: var(--bg-surface-hover); }
+    .search-ico { position: absolute; left: 30px; top: 22px; font-size: 0.85rem; opacity: 0.6; }
+
+    .folders-row { display: flex; gap: 6px; padding: 8px 18px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+    .folder-tab {
+      padding: 6px 12px; border-radius: 10px; border: none; background: transparent; color: var(--text-sub);
+      font-size: 0.8rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: 0.2s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .folder-tab.active { background: rgba(99, 102, 241, 0.16); color: var(--accent); }
+    .folder-badge { background: var(--accent); color: #fff; font-size: 0.66rem; padding: 1px 6px; border-radius: 99px; }
+
+    .chat-list { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+    .chat-item {
+      display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px;
+      cursor: pointer; transition: all 0.22s var(--smooth); position: relative;
+    }
+    .chat-item:hover { background: var(--bg-surface); transform: translateX(3px); }
+    .chat-item.active { background: var(--accent); color: #fff; box-shadow: 0 10px 24px var(--accent-glow); }
+    .chat-item.secret-item.active { background: linear-gradient(135deg, #059669, #10b981); box-shadow: 0 10px 24px rgba(16,185,129,0.3); }
+    .chat-item.active .c-preview, .chat-item.active .c-time { color: rgba(255,255,255,0.85); }
+
+    .c-ava {
+      width: 50px; height: 50px; border-radius: 16px; display: grid; place-items: center;
+      font-weight: 800; font-size: 1.1rem; color: #fff; flex-shrink: 0; position: relative;
+    }
+    .c-dot {
+      position: absolute; bottom: -2px; right: -2px; width: 13px; height: 13px; border-radius: 50%;
+      background: var(--wechat-green); border: 2.5px solid var(--bg-base);
+    }
+    .c-info { flex: 1; min-width: 0; }
+    .c-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .c-name { font-weight: 700; font-size: 0.94rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .c-time { font-size: 0.72rem; color: var(--text-sub); }
+    .c-preview { font-size: 0.82rem; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* CHAT STAGE */
+    .chat-stage {
+      flex: 1; display: flex; flex-direction: column; background: var(--bg-chat); position: relative; min-width: 0;
+    }
+    .chat-stage::before {
+      content: ''; position: absolute; inset: 0; opacity: 0.035; pointer-events: none;
+      background-image: radial-gradient(#94a3b8 1.2px, transparent 1.2px); background-size: 24px 24px;
+    }
+
+    .stage-header {
+      height: 72px; padding: 0 24px; background: var(--bg-sidebar); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; z-index: 10;
+    }
+    .stage-left { display: flex; align-items: center; gap: 14px; }
+    .stage-title-row { display: flex; align-items: center; gap: 8px; }
+    .stage-title { font-weight: 800; font-size: 1.05rem; }
+    .stage-sub { font-size: 0.78rem; color: var(--text-sub); margin-top: 2px; }
+
+    .e2ee-banner {
+      background: var(--secret-bg); border-bottom: 1px solid rgba(16, 185, 129, 0.25);
+      color: var(--secret-emerald); padding: 9px 24px; font-size: 0.8rem; text-align: center;
+      backdrop-filter: blur(10px); z-index: 9;
+    }
+
+    .feed {
+      flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 12px; z-index: 5;
+    }
+
+    .msg-group {
+      display: flex; flex-direction: column; max-width: 68%;
+      animation: msgPop 0.35s var(--spring) forwards; transform-origin: bottom left;
+    }
+    .msg-group.own { align-self: flex-end; align-items: flex-end; transform-origin: bottom right; }
+    .msg-group.other { align-self: flex-start; align-items: flex-start; }
+
+    .msg-author { font-size: 0.74rem; font-weight: 700; color: var(--accent); margin: 0 0 4px 6px; }
+    .bubble {
+      padding: 12px 16px 10px; border-radius: 20px; font-size: 0.94rem; line-height: 1.5;
+      position: relative; word-break: break-word; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
+      transition: transform 0.2s var(--spring);
+    }
+    .bubble:hover { transform: scale(1.01); }
+    .msg-group.own .bubble { background: var(--bubble-own); color: #fff; border-bottom-right-radius: 6px; }
+    .msg-group.other .bubble { background: var(--bubble-other); border: 1px solid var(--border); border-bottom-left-radius: 6px; }
+    .msg-group.secret-msg .bubble { border: 1px solid rgba(16, 185, 129, 0.5); }
+
+    .quote-block {
+      background: rgba(0, 0, 0, 0.22); border-left: 3px solid #38bdf8; padding: 6px 10px;
+      border-radius: 8px; font-size: 0.8rem; margin-bottom: 6px; opacity: 0.95;
+    }
+    .bubble-meta {
+      display: flex; align-items: center; justify-content: flex-end; gap: 6px;
+      font-size: 0.69rem; margin-top: 4px; opacity: 0.78;
+    }
+    .ttl-timer { color: #34d399; font-weight: 700; }
+
+    /* ATTACHED MEDIA IN BUBBLE */
+    .bubble-img { max-width: 240px; border-radius: 12px; margin-bottom: 6px; display: block; cursor: pointer; }
+    .audio-player-box { display: flex; align-items: center; gap: 10px; min-width: 180px; padding: 4px 0; }
+    .play-audio-btn {
+      width: 34px; height: 34px; border-radius: 50%; border: none; background: rgba(255,255,255,0.25);
+      color: #fff; cursor: pointer; display: grid; place-items: center; font-size: 0.9rem;
+    }
+    .audio-wave { font-size: 0.85rem; letter-spacing: 2px; opacity: 0.85; font-family: monospace; }
+
+    .msg-tools {
+      display: flex; gap: 4px; margin-top: 4px; opacity: 0; transform: translateY(-4px);
+      transition: all 0.2s var(--smooth);
+    }
+    .msg-group:hover .msg-tools { opacity: 1; transform: translateY(0); }
+    .tool-btn {
+      background: var(--bg-sidebar); border: 1px solid var(--border); color: var(--text-main);
+      padding: 3px 9px; border-radius: 99px; font-size: 0.75rem; cursor: pointer; transition: 0.15s;
+    }
+    .tool-btn:hover { transform: scale(1.15); border-color: var(--accent); }
+    .reactions-box { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+    .reaction-pill {
+      background: rgba(99, 102, 241, 0.18); border: 1px solid rgba(99, 102, 241, 0.35);
+      padding: 2px 8px; border-radius: 99px; font-size: 0.75rem; animation: msgPop 0.3s var(--spring);
+    }
+
+    /* COMPOSER */
+    .typing-bar { height: 22px; padding: 0 24px; font-size: 0.76rem; color: var(--accent); font-weight: 600; z-index: 6; }
+    .reply-banner {
+      margin: 0 20px 6px; padding: 10px 16px; background: var(--bg-sidebar); border-left: 3px solid var(--accent);
+      border-radius: 12px; display: none; justify-content: space-between; align-items: center; z-index: 6;
+      animation: slideUp 0.25s var(--spring);
+    }
+
+    /* ATTACHMENT PREVIEW DRAWER */
+    .file-preview-banner {
+      margin: 0 20px 6px; padding: 8px 14px; background: var(--bg-sidebar); border: 1px solid var(--accent);
+      border-radius: 12px; display: none; align-items: center; justify-content: space-between; z-index: 6;
+    }
+
+    .composer-area {
+      padding: 12px 24px 18px; display: flex; align-items: center; gap: 12px; z-index: 10;
+    }
+    .input-box {
+      flex: 1; background: var(--bg-sidebar); border: 1px solid var(--border); border-radius: 24px;
+      padding: 6px 16px; display: flex; align-items: center; gap: 10px; backdrop-filter: blur(20px);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.25); transition: border-color 0.2s;
+    }
+    .input-box:focus-within { border-color: var(--accent); }
+    .input-box input {
+      flex: 1; background: transparent; border: none; color: var(--text-main); font-size: 0.95rem; padding: 9px 4px; outline: none;
+    }
+    .action-icon-btn { background: transparent; border: none; font-size: 1.25rem; cursor: pointer; transition: transform 0.2s var(--spring); }
+    .action-icon-btn:hover { transform: scale(1.15); }
+    .recording-pulse { color: #ef4444; animation: pulse 1s infinite; }
+
+    .send-btn {
+      width: 50px; height: 50px; border-radius: 50%; border: none; background: var(--accent); color: #fff;
+      font-size: 1.2rem; cursor: pointer; display: grid; place-items: center; flex-shrink: 0;
+      box-shadow: 0 8px 22px var(--accent-glow); transition: transform 0.28s var(--spring), background 0.2s;
+    }
+    .send-btn:hover { transform: scale(1.08) rotate(-8deg); }
+    .send-btn:active { transform: scale(0.92); }
+
+    /* EMOJI POPOVER */
+    .emoji-popover {
+      position: absolute; bottom: 82px; left: 24px; background: var(--bg-sidebar); border: 1px solid var(--border);
+      backdrop-filter: blur(24px); padding: 10px; border-radius: 18px; display: none; gap: 6px; flex-wrap: wrap;
+      width: 260px; box-shadow: 0 18px 40px rgba(0,0,0,0.5); z-index: 50; animation: msgPop 0.25s var(--spring);
+    }
+    .emoji-popover.open { display: flex; }
+    .emoji-popover button { background: transparent; border: none; font-size: 1.35rem; padding: 6px; border-radius: 10px; cursor: pointer; }
+    .emoji-popover button:hover { background: var(--bg-surface); transform: scale(1.2); }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(2, 6, 23, 0.78); backdrop-filter: blur(14px);
+      display: none; place-items: center; z-index: 100; padding: 16px;
+    }
+    .modal-overlay.active { display: grid; }
+    .modal-box {
+      background: var(--bg-sidebar); border: 1px solid var(--border); border-radius: 28px;
+      padding: 30px; width: 100%; max-width: 420px; box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+      animation: modalZoom 0.38s var(--spring);
+    }
+    .modal-box h2 { font-size: 1.45rem; font-weight: 800; margin: 10px 0 6px; }
+    .modal-box p { font-size: 0.88rem; color: var(--text-sub); margin-bottom: 20px; line-height: 1.5; }
+    .f-label { display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-sub); margin: 12px 0 6px; }
+    .f-input {
+      width: 100%; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--border);
+      background: var(--bg-surface); color: var(--text-main); font-size: 0.94rem; outline: none;
+    }
+    .f-input:focus { border-color: var(--accent); }
+    .btn-action {
+      width: 100%; padding: 13px; border-radius: 14px; border: none; background: var(--accent);
+      color: #fff; font-weight: 700; font-size: 0.96rem; cursor: pointer; transition: 0.2s; margin-top: 16px;
+    }
+    .btn-action.secret-act { background: var(--secret-emerald); color: #022c22; }
+
+    @keyframes msgPop {
+      0% { opacity: 0; transform: translateY(14px) scale(0.92); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes modalZoom {
+      0% { opacity: 0; transform: scale(0.88) translateY(20px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.15); } 100% { opacity: 1; transform: scale(1); } }
+
+    .mobile-back { display: none; }
+    @media (max-width: 820px) {
+      .nav-rail { width: 62px; }
+      .sidebar { position: fixed; left: 62px; top: 0; bottom: 0; width: calc(100vw - 62px); max-width: 360px; }
+      .sidebar.hidden-mobile { transform: translateX(-110%); pointer-events: none; }
+      .mobile-back { display: grid; }
+      .msg-group { max-width: 85%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NEW CHAT MODAL -->
+  <div id="newChatModal" class="modal-overlay">
+    <div class="modal-box">
+      <span style="background:var(--secret-bg);color:var(--secret-emerald);padding:4px 12px;border-radius:99px;font-size:0.75rem;font-weight:700;">🔒 End-to-End Shifrlash</span>
+      <h2>Yangi Chat Yaratish</h2>
+      <p>Ommaviy kanal, shaxsiy DM yoki AES-256 shifrlangan maxfiy chat oching.</p>
+      <form id="createChatForm">
+        <label class="f-label">Chat turi</label>
+        <select id="chatTypeSelect" class="f-input">
+          <option value="secret">🔒 Maxfiy Chat (E2EE + Taymer)</option>
+          <option value="private">👤 Shaxsiy Suhbat (DM)</option>
+          <option value="public">📢 Ommaviy Kanal</option>
+        </select>
+
+        <label class="f-label">Chat Nomi yoki Suhbatdosh</label>
+        <input type="text" id="chatNameInput" class="f-input" placeholder="Masalan: Startap Hamkorlar" required />
+
+        <div id="secretPasswordGroup">
+          <label class="f-label">Maxfiy Kalit (Passphrase)</label>
+          <input type="password" id="secretPassInput" class="f-input" placeholder="Suhbatdosh bilan kelishilgan kalit..." />
+
+          <label class="f-label">O'z-o'zini yo'q qilish taymeri</label>
+          <select id="chatTtlSelect" class="f-input">
+            <option value="10">10 soniya</option>
+            <option value="30" selected>30 soniya</option>
+            <option value="60">1 daqiqa</option>
+          </select>
+        </div>
+
+        <div style="display:flex;gap:10px;">
+          <button type="button" id="closeModalBtn" class="btn-action" style="background:var(--bg-surface);color:var(--text-main);">Bekor qilish</button>
+          <button type="submit" class="btn-action secret-act">Yaratish</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER -->
+  <div class="app-layout">
+    <!-- 1. RAILWAY NAVIGATION -->
+    <nav class="nav-rail">
+      <div class="rail-avatar" id="myProfileAvatar" title="Quvonchbek • Senior Lead">Q</div>
+      <button class="rail-btn active" data-folder="all" title="Barcha chatlar">💬</button>
+      <button class="rail-btn" data-folder="private" title="Shaxsiy chatlar">👤</button>
+      <button class="rail-btn" data-folder="public" title="Ommaviy kanallar">📢</button>
+      <button class="rail-btn secret-rail" data-folder="secret" title="Maxfiy chatlar">🔒</button>
+      <div class="rail-spacer"></div>
+      <button class="rail-btn" id="themeToggleBtn" title="Rejimni o'zgartirish">🌓</button>
+    </nav>
+
+    <!-- 2. SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-top">
+        <div class="logo-box"><span>⚡</span><span>TeleWe Pro</span></div>
+        <button class="new-chat-fab" id="openModalBtn">＋ Yangi</button>
+      </div>
+
+      <!-- STORIES -->
+      <div class="stories-row" id="storiesRow"></div>
+
+      <div class="search-wrap">
+        <span class="search-ico">🔍</span>
+        <input type="text" id="searchInput" placeholder="Chatlarni qidirish..." />
+      </div>
+
+      <div class="folders-row">
+        <button class="folder-tab active" data-folder="all">Barchasi <span class="folder-badge" id="countAll">4</span></button>
+        <button class="folder-tab" data-folder="public">Ommaviy</button>
+        <button class="folder-tab" data-folder="private">Shaxsiy</button>
+        <button class="folder-tab" data-folder="secret">Maxfiy 🔒</button>
+      </div>
+
+      <div class="chat-list" id="chatListContainer"></div>
+    </aside>
+
+    <!-- 3. CHAT WORKSPACE -->
+    <main class="chat-stage">
+      <header class="stage-header">
+        <div class="stage-left">
+          <button class="rail-btn mobile-back" id="mobileBackBtn" style="width:38px;height:38px;">←</button>
+          <div class="c-ava" id="headerAva" style="width:44px;height:44px;border-radius:14px;background:#6366f1;">🌐</div>
+          <div>
+            <div class="stage-title-row">
+              <span class="stage-title" id="headerTitle">O'zbekiston IT Hamjamiyati</span>
+              <span id="headerBadge" style="font-size:0.7rem;padding:2px 8px;border-radius:99px;background:rgba(99,102,241,0.2);color:#818cf8;">Ommaviy</span>
+            </div>
+            <div class="stage-sub" id="headerSub">2,410 a'zo • 186 onlayn</div>
+          </div>
+        </div>
+        <div class="stage-actions">
+          <button class="rail-btn" id="quickSecretBtn" title="Maxfiy chat ochish" style="width:40px;height:40px;">🔐</button>
+        </div>
+      </header>
+
+      <div class="e2ee-banner" id="e2eeBanner" style="display:none;">
+        🛡️ <strong>Zero-Knowledge Shifrlash Faol:</strong> Xabarlar AES-256-GCM orqali himoyalangan va taymer bo'yicha o'chib ketadi.
+      </div>
+
+      <section class="feed" id="messagesFeed"></section>
+
+      <div class="typing-bar" id="typingBar"></div>
+
+      <!-- REPLY BANNER -->
+      <div class="reply-banner" id="replyBanner">
+        <div>
+          <span style="font-size:0.75rem;color:var(--accent);font-weight:700;">Javob berilmoqda:</span>
+          <div id="replyBannerText" style="font-size:0.82rem;opacity:0.85;"></div>
+        </div>
+        <button id="cancelReplyBtn" style="background:none;border:none;color:var(--text-main);cursor:pointer;font-size:1.1rem;">✕</button>
+      </div>
+
+      <!-- FILE ATTACHMENT PREVIEW -->
+      <div class="file-preview-banner" id="filePreviewBanner">
+        <div style="display:flex;align-items:center;gap:10px;font-size:0.85rem;">
+          <span id="attachedFileIcon">📎</span>
+          <span id="attachedFileName" style="font-weight:600;">fayl_nomi.png</span>
+        </div>
+        <button id="cancelFileBtn" style="background:none;border:none;color:var(--text-main);cursor:pointer;font-size:1.1rem;">✕</button>
+      </div>
+
+      <!-- EMOJI POPOVER -->
+      <div class="emoji-popover" id="emojiPopover">
+        <button type="button">😀</button><button type="button">😂</button><button type="button">🔥</button><button type="button">❤️</button>
+        <button type="button">👍</button><button type="button">🚀</button><button type="button">👏</button><button type="button">🎉</button>
+        <button type="button">🤔</button><button type="button">😎</button><button type="button">💯</button><button type="button">⚡</button>
+      </div>
+
+      <!-- HIDDEN FILE INPUT -->
+      <input type="file" id="fileInput" style="display:none;" accept="image/*,application/pdf,.zip,.txt" />
+
+      <footer class="composer-area">
+        <div class="input-box">
+          <button type="button" class="action-icon-btn" id="emojiToggleBtn" title="Emoji">😊</button>
+          <button type="button" class="action-icon-btn" id="attachFileBtn" title="Fayl biriktirish">📎</button>
+          <input type="text" id="messageInput" placeholder="Xabar yozing..." autocomplete="off" />
+          <button type="button" class="action-icon-btn" id="recordAudioBtn" title="Ovozli xabar">🎙️</button>
+        </div>
+        <button type="button" class="send-btn" id="sendMessageBtn" title="Yuborish">➤</button>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    // --- 1. CRYPTO ENGINE (AES-256-GCM) ---
+    const SecureCrypto = {
+      async getKey(pass, salt) {
+        const enc = new TextEncoder();
+        const baseKey = await crypto.subtle.importKey('raw', enc.encode(pass || 'senior-key'), { name: 'PBKDF2' }, false, ['deriveKey']);
+        return crypto.subtle.deriveKey(
+          { name: 'PBKDF2', salt: enc.encode(salt), iterations: 80000, hash: 'SHA-256' },
+          baseKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+        );
+      },
+      async encrypt(plain, pass, salt) {
+        const key = await this.getKey(pass, salt);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(plain));
+        return {
+          ciphertext: btoa(String.fromCharCode(...new Uint8Array(cipher))),
+          iv: btoa(String.fromCharCode(...iv))
+        };
+      },
+      async decrypt(c64, iv64, pass, salt) {
+        try {
+          const key = await this.getKey(pass, salt);
+          const cBytes = Uint8Array.from(atob(c64), c => c.charCodeAt(0));
+          const ivBytes = Uint8Array.from(atob(iv64), c => c.charCodeAt(0));
+          const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBytes }, key, cBytes);
+          return new TextDecoder().decode(dec);
+        } catch {
+          return '🔒 [Shifrlangan xabar — kalit xato]';
+        }
+      }
+    };
+
+    // --- 2. MULTI-TAB BROADCAST SYNC ---
+    const channel = new BroadcastChannel('telewe_pro_bus');
+
+    // --- 3. APPLICATION STATE ---
+    const state = {
+      me: { id: 'user-quvonch', name: 'Quvonchbek', color: '#6366f1' },
+      folder: 'all',
+      searchQuery: '',
+      replyTo: null,
+      activeId: 'pub-1',
+      attachedFile: null, // { name, type, dataUrl }
+      mediaRecorder: null,
+      audioChunks: [],
+      isRecording: false,
+      chats: [
+        { id: 'pub-1', type: 'public', name: "O'zbekiston IT Hamjamiyati", sub: '2,410 aʼzo • Ommaviy kanal', icon: '🌐', color: '#2563eb', online: true, lastMsg: 'Ovozli xabar va fayllar qoʻshildi!', time: '10:45' },
+        { id: 'pub-2', type: 'public', name: 'UI/UX & Frontend Design', sub: '980 aʼzo • Dizayn kanali', icon: '🎨', color: '#8b5cf6', online: true, lastMsg: 'Glassmorphism va Spring animatsiyalar', time: '09:15' },
+        { id: 'prv-1', type: 'private', name: 'Azizbek (Backend Lead)', sub: 'oxirgi marta 5 daqiqa oldin', icon: 'A', color: '#07c160', online: true, lastMsg: 'API soʻrovlarini optimizatsiya qildik', time: '10:20' },
+        { id: 'sec-1', type: 'secret', name: 'Maxfiy: Arxitektura Rejasi', sub: 'AES-256 E2EE • 30s taymer', icon: '🔒', color: '#10b981', online: true, key: 'sec123', ttl: 30, lastMsg: 'Maxfiy shifrlangan xabar', time: 'Hozir' }
+      ],
+      stories: [
+        { name: 'Quvonchbek', icon: 'Q', color: '#6366f1' },
+        { name: 'Azizbek', icon: 'A', color: '#07c160' },
+        { name: 'Madina', icon: 'M', color: '#ec4899' },
+        { name: 'Tech News', icon: '⚡', color: '#f59e0b' }
+      ],
+      messages: {
+        'pub-1': [
+          { id: 'm1', senderId: 's1', senderName: 'Sardor', text: 'Ovozli xabar va fayl biriktirish juda zoʻr ishladi 🔥', time: '10:42', reactions: { '🔥': 4, '👍': 3 } }
+        ],
+        'pub-2': [
+          { id: 'm3', senderId: 's3', senderName: 'Behruz', text: 'Figma toʻplamlari va UI komponentlari tayyor.', time: '09:15', reactions: {} }
+        ],
+        'prv-1': [
+          { id: 'm4', senderId: 'prv-1', senderName: 'Azizbek', text: 'Salom Quvonchbek! Server tayyor.', time: '10:20', reactions: {} }
+        ],
+        'sec-1': []
+      }
+    };
+
+    // --- 4. INITIALIZATION & UI BINDINGS ---
+    renderStories();
+    renderChats();
+    selectChat(state.activeId);
+
+    document.getElementById('themeToggleBtn').onclick = () => {
+      const html = document.documentElement;
+      html.setAttribute('data-theme', html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    };
+
+    function switchFolder(folder) {
+      state.folder = folder;
+      document.querySelectorAll('.folder-tab, .rail-btn[data-folder]').forEach(el => {
+        el.classList.toggle('active', el.dataset.folder === folder);
+      });
+      renderChats();
+    }
+    document.querySelectorAll('.folder-tab, .rail-btn[data-folder]').forEach(el => {
+      el.onclick = () => switchFolder(el.dataset.folder);
+    });
+
+    document.getElementById('searchInput').oninput = (e) => {
+      state.searchQuery = e.target.value.toLowerCase();
+      renderChats();
+    };
+
+    const modal = document.getElementById('newChatModal');
+    const toggleModal = (show) => modal.classList.toggle('active', show);
+    document.getElementById('openModalBtn').onclick = () => toggleModal(true);
+    document.getElementById('quickSecretBtn').onclick = () => toggleModal(true);
+    document.getElementById('closeModalBtn').onclick = () => toggleModal(false);
+
+    document.getElementById('chatTypeSelect').onchange = (e) => {
+      document.getElementById('secretPasswordGroup').style.display = e.target.value === 'secret' ? 'block' : 'none';
+    };
+
+    document.getElementById('createChatForm').onsubmit = (e) => {
+      e.preventDefault();
+      const type = document.getElementById('chatTypeSelect').value;
+      const name = document.getElementById('chatNameInput').value.trim();
+      const key = document.getElementById('secretPassInput').value || 'secret123';
+      const ttl = Number(document.getElementById('chatTtlSelect').value) || 30;
+      const id = type.slice(0, 3) + '-' + Math.random().toString(36).slice(2, 7);
+
+      const newChat = {
+        id, type,
+        name: type === 'secret' ? `Maxfiy: ${name}` : name,
+        sub: type === 'secret' ? `AES-256 E2EE • ${ttl}s taymer` : 'Yangi suhbat • Onlayn',
+        icon: type === 'secret' ? '🔒' : name[0].toUpperCase(),
+        color: type === 'secret' ? '#10b981' : type === 'private' ? '#07c160' : '#2563eb',
+        online: true, key, ttl,
+        lastMsg: 'Suhbat boshlandi', time: 'Hozir'
+      };
+
+      state.chats.unshift(newChat);
+      state.messages[id] = [];
+      toggleModal(false);
+      document.getElementById('chatNameInput').value = '';
+      renderChats();
+      selectChat(id);
+    };
+
+    // --- 5. RENDERING LOGIC ---
+    function renderStories() {
+      document.getElementById('storiesRow').innerHTML = state.stories.map(st => `
+        <div class="story-card" onclick="alert('${st.name} hikoyasi ochildi ✨')">
+          <div class="story-ring"><div class="story-inner" style="background:${st.color}">${st.icon}</div></div>
+          <span class="story-title">${st.name}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderChats() {
+      document.getElementById('countAll').textContent = state.chats.length;
+      const filtered = state.chats.filter(c => {
+        const matchFolder = state.folder === 'all' || c.type === state.folder;
+        const matchSearch = c.name.toLowerCase().includes(state.searchQuery) || c.lastMsg.toLowerCase().includes(state.searchQuery);
+        return matchFolder && matchSearch;
+      });
+
+      document.getElementById('chatListContainer').innerHTML = filtered.map(c => {
+        const isActive = c.id === state.activeId;
+        const isSecret = c.type === 'secret';
+        return `
+          <div class="chat-item ${isActive ? 'active' : ''} ${isSecret ? 'secret-item' : ''}" onclick="selectChat('${c.id}')">
+            <div class="c-ava" style="background:${c.color}">
+              ${c.icon}
+              ${c.online ? '<span class="c-dot"></span>' : ''}
+            </div>
+            <div class="c-info">
+              <div class="c-top">
+                <span class="c-name">${esc(c.name)}</span>
+                <span class="c-time">${c.time}</span>
+              </div>
+              <div class="c-preview">${esc(c.lastMsg)}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.selectChat = async (id) => {
+      state.activeId = id;
+      state.replyTo = null;
+      document.getElementById('replyBanner').style.display = 'none';
+      document.getElementById('sidebar').classList.add('hidden-mobile');
+
+      const chat = state.chats.find(c => c.id === id);
+      if (!chat) return;
+
+      document.getElementById('headerTitle').textContent = chat.name;
+      document.getElementById('headerSub').textContent = chat.sub;
+      const hAva = document.getElementById('headerAva');
+      hAva.textContent = chat.icon;
+      hAva.style.background = chat.color;
+
+      const badge = document.getElementById('headerBadge');
+      if (chat.type === 'public') {
+        badge.textContent = 'Ommaviy';
+        badge.style.background = 'rgba(99,102,241,0.2)'; badge.style.color = '#818cf8';
+      } else if (chat.type === 'private') {
+        badge.textContent = 'Shaxsiy';
+        badge.style.background = 'rgba(7,193,96,0.2)'; badge.style.color = '#34d399';
+      } else {
+        badge.textContent = `Maxfiy • ${chat.ttl}s`;
+        badge.style.background = 'var(--secret-bg)'; badge.style.color = 'var(--secret-emerald)';
+      }
+
+      document.getElementById('e2eeBanner').style.display = chat.type === 'secret' ? 'block' : 'none';
+      renderChats();
+      await renderMessagesFeed();
+    };
+
+    document.getElementById('mobileBackBtn').onclick = () => {
+      document.getElementById('sidebar').classList.remove('hidden-mobile');
+    };
+
+    // --- 6. FILE ATTACHMENT & AUDIO RECORDING ---
+    const fileInput = document.getElementById('fileInput');
+    document.getElementById('attachFileBtn').onclick = () => fileInput.click();
+
+    fileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        state.attachedFile = {
+          name: file.name,
+          type: file.type.startsWith('image/') ? 'image' : 'file',
+          dataUrl: evt.target.result
+        };
+        document.getElementById('attachedFileName').textContent = file.name;
+        document.getElementById('attachedFileIcon').textContent = file.type.startsWith('image/') ? '🖼️' : '📎';
+        document.getElementById('filePreviewBanner').style.display = 'flex';
+      };
+      reader.readAsDataURL(file);
+    };
+
+    document.getElementById('cancelFileBtn').onclick = () => {
+      state.attachedFile = null;
+      document.getElementById('filePreviewBanner').style.display = 'none';
+      fileInput.value = '';
+    };
+
+    // Audio Recorder Handler
+    const recordBtn = document.getElementById('recordAudioBtn');
+    recordBtn.onclick = async () => {
+      if (!state.isRecording) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          state.mediaRecorder = new MediaRecorder(stream);
+          state.audioChunks = [];
+          state.mediaRecorder.ondataavailable = (ev) => state.audioChunks.push(ev.data);
+          state.mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(state.audioChunks, { type: 'audio/webm' });
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+              await sendMediaMessage({ type: 'audio', dataUrl: e.target.result, name: 'Ovozli xabar (0:05)' });
+            };
+            reader.readAsDataURL(audioBlob);
+          };
+          state.mediaRecorder.start();
+          state.isRecording = true;
+          recordBtn.classList.add('recording-pulse');
+          recordBtn.title = "Yozishni to'xtatish va yuborish";
+        } catch {
+          alert('Mikrofondan foydalanishga ruxsat berilmadi yoki qurilmada mikrofon yoʻq.');
+        }
+      } else {
+        state.mediaRecorder.stop();
+        state.mediaRecorder.stream.getTracks().forEach(t => t.stop());
+        state.isRecording = false;
+        recordBtn.classList.remove('recording-pulse');
+        recordBtn.title = "Ovozli xabar yozish";
+      }
+    };
+
+    async function sendMediaMessage(mediaObj) {
+      const chat = state.chats.find(c => c.id === state.activeId);
+      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const msg = {
+        id: 'm-' + Math.random().toString(36).slice(2, 9),
+        roomId: chat.id,
+        senderId: state.me.id,
+        senderName: state.me.name,
+        time: now,
+        media: mediaObj,
+        reactions: {}
+      };
+
+      chat.lastMsg = mediaObj.type === 'image' ? '🖼️ Rasm yuborildi' : '🎙️ Ovozli xabar';
+      chat.time = now;
+
+      if (!state.messages[chat.id]) state.messages[chat.id] = [];
+      state.messages[chat.id].push(msg);
+
+      channel.postMessage({ kind: 'SYNC_MSG', msg });
+      await drawMessage(msg, true);
+      renderChats();
+    }
+
+    // --- 7. MESSAGES & E2EE LOGIC ---
+    async function renderMessagesFeed() {
+      const feed = document.getElementById('messagesFeed');
+      feed.innerHTML = '';
+      const list = state.messages[state.activeId] || [];
+      for (const m of list) {
+        await drawMessage(m, false);
+      }
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    async function drawMessage(m, animate = true) {
+      const feed = document.getElementById('messagesFeed');
+      const chat = state.chats.find(c => c.id === m.roomId || c.id === state.activeId);
+      const isOwn = m.senderId === state.me.id;
+
+      let displayTxt = m.text;
+      if (m.ciphertext && chat) {
+        displayTxt = await SecureCrypto.decrypt(m.ciphertext, m.iv, chat.key, chat.id);
+      }
+
+      const row = document.createElement('div');
+      row.className = `msg-group ${isOwn ? 'own' : 'other'} ${chat?.type === 'secret' ? 'secret-msg' : ''}`;
+      if (!animate) row.style.animation = 'none';
+      row.id = `msg-${m.id}`;
+
+      let contentHtml = '';
+      if (m.media) {
+        if (m.media.type === 'image') {
+          contentHtml = `<img src="${m.media.dataUrl}" class="bubble-img" onclick="window.open('${m.media.dataUrl}')" alt="image" />`;
+        } else if (m.media.type === 'audio') {
+          contentHtml = `
+            <div class="audio-player-box">
+              <button class="play-audio-btn" onclick="playAudio(this, '${m.media.dataUrl}')">▶</button>
+              <div>
+                <div style="font-size:0.8rem;font-weight:700;">${m.media.name}</div>
+                <div class="audio-wave">|ll|l|l||||||l||</div>
+              </div>
+            </div>
+          `;
+        } else {
+          contentHtml = `<a href="${m.media.dataUrl}" download="${m.media.name}" style="color:inherit;text-decoration:underline;">📎 ${m.media.name}</a>`;
+        }
+      } else {
+        contentHtml = `<div>${esc(displayTxt)}</div>`;
+      }
+
+      const reactsHtml = Object.entries(m.reactions || {}).map(([em, cnt]) => `<span class="reaction-pill">${em} ${cnt}</span>`).join('');
+
+      row.innerHTML = `
+        ${!isOwn ? `<div class="msg-author">${esc(m.senderName)}</div>` : ''}
+        <div class="bubble">
+          ${m.replyTo ? `<div class="quote-block">↪ ${esc(m.replyTo)}</div>` : ''}
+          ${contentHtml}
+          <div class="bubble-meta">
+            ${m.ttl ? `<span class="ttl-timer" id="ttl-${m.id}">⏱️ ${m.ttl}s</span>` : ''}
+            <span>${m.time}</span>
+            ${isOwn ? '<span>✓✓</span>' : ''}
+          </div>
+        </div>
+        <div class="reactions-box" id="reacts-${m.id}">${reactsHtml}</div>
+        <div class="msg-tools">
+          <button class="tool-btn" onclick="setReply('${escAttr(displayTxt || m.media?.name || 'Media')}')">↩ Javob</button>
+          <button class="tool-btn" onclick="addReaction('${m.id}', '❤️')">❤️</button>
+          <button class="tool-btn" onclick="addReaction('${m.id}', '🔥')">🔥</button>
+          <button class="tool-btn" onclick="addReaction('${m.id}', '👍')">👍</button>
+        </div>
+      `;
+
+      feed.appendChild(row);
+      feed.scrollTop = feed.scrollHeight;
+
+      if (m.ttl) {
+        let left = Number(m.ttl);
+        const timer = setInterval(() => {
+          left--;
+          const el = document.getElementById(`ttl-${m.id}`);
+          if (el) el.textContent = `⏱️ ${left}s`;
+          if (left <= 0) {
+            clearInterval(timer);
+            row.style.transition = 'all 0.35s ease';
+            row.style.opacity = '0';
+            row.style.transform = 'scale(0.8)';
+            setTimeout(() => row.remove(), 350);
+          }
+        }, 1000);
+      }
+    }
+
+    window.playAudio = (btn, url) => {
+      const audio = new Audio(url);
+      if (btn.textContent === '▶') {
+        audio.play();
+        btn.textContent = '❚❚';
+        audio.onended = () => btn.textContent = '▶';
+      } else {
+        audio.pause();
+        btn.textContent = '▶';
+      }
+    };
+
+    async function handleSendMessage() {
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+
+      if (state.attachedFile) {
+        await sendMediaMessage(state.attachedFile);
+        state.attachedFile = null;
+        document.getElementById('filePreviewBanner').style.display = 'none';
+        fileInput.value = '';
+        return;
+      }
+
+      if (!text) return;
+
+      const chat = state.chats.find(c => c.id === state.activeId);
+      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      const msg = {
+        id: 'm-' + Math.random().toString(36).slice(2, 9),
+        roomId: chat.id,
+        senderId: state.me.id,
+        senderName: state.me.name,
+        time: now,
+        replyTo: state.replyTo,
+        reactions: {}
+      };
+
+      if (chat.type === 'secret') {
+        const enc = await SecureCrypto.encrypt(text, chat.key, chat.id);
+        msg.ciphertext = enc.ciphertext;
+        msg.iv = enc.iv;
+        msg.ttl = chat.ttl;
+        chat.lastMsg = '🔒 Shifrlangan xabar';
+      } else {
+        msg.text = text;
+        chat.lastMsg = text;
+      }
+      chat.time = now;
+
+      if (!state.messages[chat.id]) state.messages[chat.id] = [];
+      state.messages[chat.id].push(msg);
+
+      channel.postMessage({ kind: 'SYNC_MSG', msg });
+      await drawMessage(msg, true);
+      renderChats();
+
+      input.value = '';
+      state.replyTo = null;
+      document.getElementById('replyBanner').style.display = 'none';
+
+      if (chat.id === 'prv-1') {
+        document.getElementById('typingBar').textContent = 'Azizbek yozmoqda...';
+        setTimeout(async () => {
+          document.getElementById('typingBar').textContent = '';
+          const autoReply = {
+            id: 'm-' + Math.random().toString(36).slice(2, 9),
+            roomId: 'prv-1', senderId: 'prv-1', senderName: 'Azizbek',
+            text: 'Fayl va ovozli xabar qabul qilindi 🎙️📎',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            reactions: {}
+          };
+          state.messages['prv-1'].push(autoReply);
+          chat.lastMsg = autoReply.text;
+          if (state.activeId === 'prv-1') await drawMessage(autoReply, true);
+          renderChats();
+        }, 1250);
+      }
+    }
+
+    document.getElementById('sendMessageBtn').onclick = handleSendMessage;
+    document.getElementById('messageInput').onkeydown = (e) => {
+      if (e.key === 'Enter') handleSendMessage();
+    };
+
+    channel.onmessage = async (e) => {
+      if (e.data.kind === 'SYNC_MSG') {
+        const msg = e.data.msg;
+        if (!state.messages[msg.roomId]) state.messages[msg.roomId] = [];
+        state.messages[msg.roomId].push(msg);
+        const chat = state.chats.find(c => c.id === msg.roomId);
+        if (chat) {
+          chat.lastMsg = msg.ciphertext ? '🔒 Shifrlangan xabar' : (msg.media ? 'Media fayl' : msg.text);
+          chat.time = msg.time;
+          renderChats();
+        }
+        if (msg.roomId === state.activeId) await drawMessage(msg, true);
+      }
+    };
+
+    const emojiPop = document.getElementById('emojiPopover');
+    document.getElementById('emojiToggleBtn').onclick = () => emojiPop.classList.toggle('open');
+    emojiPop.querySelectorAll('button').forEach(b => {
+      b.onclick = () => {
+        const inp = document.getElementById('messageInput');
+        inp.value += b.textContent;
+        inp.focus();
+      };
+    });
+
+    window.setReply = (txt) => {
+      state.replyTo = txt.slice(0, 50);
+      document.getElementById('replyBannerText').textContent = state.replyTo;
+      document.getElementById('replyBanner').style.display = 'flex';
+      document.getElementById('messageInput').focus();
+    };
+    document.getElementById('cancelReplyBtn').onclick = () => {
+      state.replyTo = null;
+      document.getElementById('replyBanner').style.display = 'none';
+    };
+
+    window.addReaction = (msgId, emoji) => {
+      const list = state.messages[state.activeId] || [];
+      const msg = list.find(m => m.id === msgId);
+      if (!msg) return;
+      msg.reactions[emoji] = (msg.reactions[emoji] || 0) + 1;
+      const box = document.getElementById(`reacts-${msgId}`);
+      if (box) {
+        box.innerHTML = Object.entries(msg.reactions).map(([em, cnt]) => `<span class="reaction-pill">${em} ${cnt}</span>`).join('');
+      }
+    };
+
+    function esc(s) {
+      return String(s || '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+    }
+    function escAttr(s) {
+      return String(s || '').replace(/'/g, "\\'").replace(/\n/g, ' ');
+    }
+  </script>
+</body>
+</html>
+
