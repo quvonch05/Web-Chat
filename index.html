@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="uz" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexChat Pro — Zamonaviy Web Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-app: #0b0f19;
+      --bg-sidebar: rgba(17, 24, 39, 0.85);
+      --bg-surface: rgba(30, 41, 59, 0.65);
+      --bg-glass: rgba(15, 23, 42, 0.88);
+      --border: rgba(148, 163, 184, 0.14);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --secret: #10b981;
+      --secret-bg: rgba(16, 185, 129, 0.14);
+      --msg-own: linear-gradient(135deg, #6366f1, #4f46e5);
+      --msg-other: rgba(30, 41, 59, 0.9);
+      --shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+    }
+    [data-theme="light"] {
+      --bg-app: #f1f5f9;
+      --bg-sidebar: rgba(255, 255, 255, 0.9);
+      --bg-surface: rgba(241, 245, 249, 0.9);
+      --bg-glass: rgba(255, 255, 255, 0.95);
+      --border: rgba(15, 23, 42, 0.1);
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --msg-other: #ffffff;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    body { background: var(--bg-app); color: var(--text-main); height: 100vh; overflow: hidden; }
+
+    .app-shell { display: flex; height: 100vh; width: 100vw; }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 340px; background: var(--bg-sidebar); backdrop-filter: blur(18px);
+      border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 20; transition: transform 0.25s ease;
+    }
+    .sidebar-header { padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+    .logo-wrap { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem; }
+    .header-actions { display: flex; gap: 8px; }
+    .icon-btn {
+      background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-main);
+      width: 36px; height: 36px; border-radius: 10px; cursor: pointer; display: grid; place-items: center; transition: 0.2s;
+    }
+    .icon-btn:hover { border-color: var(--primary); transform: translateY(-1px); }
+    .secret-trigger { border-color: rgba(16, 185, 129, 0.4); color: var(--secret); }
+
+    .sidebar-search { padding: 12px 16px 8px; }
+    .sidebar-search input, input, select {
+      width: 100%; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border);
+      background: var(--bg-surface); color: var(--text-main); outline: none; font-size: 0.9rem;
+    }
+    input:focus, select:focus { border-color: var(--primary); }
+
+    .chat-tabs { display: flex; gap: 6px; padding: 8px 16px 12px; border-bottom: 1px solid var(--border); }
+    .tab-btn {
+      flex: 1; padding: 7px 6px; border-radius: 9px; border: none; background: transparent;
+      color: var(--text-muted); font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: 0.2s;
+    }
+    .tab-btn.active { background: var(--primary); color: #fff; }
+
+    .chat-list-scroll { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+    .section-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); padding: 8px 8px 4px; font-weight: 600; }
+
+    .chat-item {
+      display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 14px; cursor: pointer; transition: 0.18s; border: 1px solid transparent;
+    }
+    .chat-item:hover { background: var(--bg-surface); }
+    .chat-item.active { background: rgba(99, 102, 241, 0.16); border-color: rgba(99, 102, 241, 0.4); }
+    .chat-item.secret-item.active { background: var(--secret-bg); border-color: rgba(16, 185, 129, 0.4); }
+
+    .avatar {
+      width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; font-weight: 700; color: #fff; flex-shrink: 0; font-size: 1rem;
+    }
+    .chat-item-info { flex: 1; min-width: 0; }
+    .chat-item-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+    .chat-item-name { font-weight: 600; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat-item-desc { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .user-footer { padding: 14px 16px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+    .user-name { font-weight: 600; font-size: 0.92rem; }
+    .user-status { font-size: 0.76rem; color: var(--secret); display: flex; align-items: center; gap: 6px; }
+    .dot-online { width: 8px; height: 8px; border-radius: 50%; background: var(--secret); display: inline-block; }
+
+    /* MAIN AREA */
+    .chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+    .chat-header {
+      height: 70px; padding: 0 22px; border-bottom: 1px solid var(--border); background: var(--bg-sidebar);
+      backdrop-filter: blur(16px); display: flex; align-items: center; justify-content: space-between;
+    }
+    .chat-header-left { display: flex; align-items: center; gap: 14px; }
+    .chat-title-row { display: flex; align-items: center; gap: 10px; }
+    .chat-title-row h2 { font-size: 1.05rem; font-weight: 700; }
+    .chat-sub { font-size: 0.8rem; color: var(--text-muted); }
+
+    .badge { font-size: 0.7rem; padding: 3px 9px; border-radius: 99px; font-weight: 600; }
+    .badge-public { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
+    .badge-private { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
+    .badge-secret { background: var(--secret-bg); color: var(--secret); }
+
+    .e2ee-banner {
+      background: var(--secret-bg); color: var(--secret); padding: 9px 20px; font-size: 0.8rem;
+      border-bottom: 1px solid rgba(16, 185, 129, 0.25); text-align: center;
+    }
+
+    .messages-area { flex: 1; overflow-y: auto; padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+    .empty-state { margin: auto; color: var(--text-muted); font-size: 0.92rem; }
+
+    /* BUBBLES */
+    .msg-row { display: flex; flex-direction: column; max-width: 72%; animation: fadeIn 0.2s ease; }
+    .msg-row.own { align-self: flex-end; align-items: flex-end; }
+    .msg-row.other { align-self: flex-start; align-items: flex-start; }
+
+    .msg-meta { font-size: 0.74rem; color: var(--text-muted); margin-bottom: 4px; display: flex; gap: 8px; align-items: center; }
+    .msg-bubble {
+      padding: 11px 15px; border-radius: 16px; font-size: 0.93rem; line-height: 1.45; position: relative; word-break: break-word; box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    }
+    .msg-row.own .msg-bubble { background: var(--msg-own); color: #fff; border-bottom-right-radius: 4px; }
+    .msg-row.other .msg-bubble { background: var(--msg-other); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+    .msg-row.secret-msg .msg-bubble { border: 1px solid rgba(16, 185, 129, 0.45); }
+
+    .reply-quote { font-size: 0.78rem; padding: 5px 9px; margin-bottom: 6px; border-left: 3px solid #38bdf8; background: rgba(0, 0, 0, 0.18); border-radius: 6px; }
+    .msg-footer { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 0.72rem; color: var(--text-muted); }
+    .msg-actions button { background: transparent; border: none; color: inherit; cursor: pointer; font-size: 0.78rem; padding: 2px 5px; border-radius: 6px; }
+    .msg-actions button:hover { background: var(--bg-surface); }
+    .ttl-countdown { color: var(--secret); font-weight: 600; }
+
+    .reply-bar {
+      padding: 8px 20px; background: var(--bg-surface); border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem;
+    }
+    .reply-label { color: var(--primary); font-weight: 600; margin-right: 6px; }
+
+    /* COMPOSER */
+    .composer {
+      padding: 12px 20px 16px; border-top: 1px solid var(--border); background: var(--bg-sidebar); display: flex; align-items: center; gap: 10px;
+    }
+    .emoji-quick { display: flex; gap: 4px; }
+    .emoji-btn { background: transparent; border: none; font-size: 1.15rem; cursor: pointer; padding: 4px; border-radius: 8px; }
+    .emoji-btn:hover { background: var(--bg-surface); }
+    .composer-form { flex: 1; display: flex; gap: 10px; }
+    .btn-send {
+      background: var(--primary); color: #fff; border: none; width: 44px; height: 42px; border-radius: 12px; cursor: pointer; font-size: 1.05rem; transition: 0.2s;
+    }
+    .btn-send:hover { background: var(--primary-hover); }
+
+    /* MODALS */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(2, 6, 23, 0.78); backdrop-filter: blur(10px);
+      display: none; place-items: center; z-index: 100; padding: 16px;
+    }
+    .modal-backdrop.active { display: grid; }
+    .glass-card {
+      background: var(--bg-glass); border: 1px solid var(--border); border-radius: 22px; padding: 28px; width: 100%; max-width: 420px; box-shadow: var(--shadow);
+    }
+    .auth-box h1, .auth-box h2 { margin: 10px 0 8px; font-size: 1.45rem; }
+    .auth-box .muted { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 18px; line-height: 1.5; }
+    .auth-box label { display: block; font-size: 0.8rem; font-weight: 600; margin: 12px 0 6px; color: var(--text-muted); }
+
+    .brand-badge, .secret-pill {
+      display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 4px 11px; border-radius: 99px; background: rgba(99, 102, 241, 0.2); color: #818cf8;
+    }
+    .secret-pill { background: var(--secret-bg); color: var(--secret); }
+
+    .color-picker { display: flex; gap: 10px; margin-bottom: 18px; }
+    .color-dot { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+    .color-dot.active { border-color: #fff; transform: scale(1.12); }
+
+    .btn-primary, .btn-secret, .btn-ghost {
+      padding: 11px 18px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; font-size: 0.9rem;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-secret { background: var(--secret); color: #052e16; }
+    .btn-ghost { background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border); }
+    .btn-ghost.sm { padding: 6px 12px; font-size: 0.8rem; }
+    .w-full { width: 100%; margin-top: 8px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+    .mobile-only { display: none; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 768px) {
+      .sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .mobile-only { display: grid; }
+      .msg-row { max-width: 86%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- AUTH MODAL -->
+  <div id="authModal" class="modal-backdrop active">
+    <div class="glass-card auth-box">
+      <div class="brand-badge">NexChat Pro (Static)</div>
+      <h1>Xush kelibsiz</h1>
+      <p class="muted">Ommaviy kanallar, shaxsiy DM va AES-256 shifrlangan maxfiy chatlar.</p>
+      <form id="authForm">
+        <label>Ismingiz</label>
+        <input type="text" id="usernameInput" placeholder="Masalan: Quvonchbek" required maxlength="24" autocomplete="off" />
+        <label>Profil rangi</label>
+        <div class="color-picker">
+          <button type="button" class="color-dot active" data-color="#6366f1" style="background:#6366f1"></button>
+          <button type="button" class="color-dot" data-color="#10b981" style="background:#10b981"></button>
+          <button type="button" class="color-dot" data-color="#f59e0b" style="background:#f59e0b"></button>
+          <button type="button" class="color-dot" data-color="#ec4899" style="background:#ec4899"></button>
+        </div>
+        <button type="submit" class="btn-primary w-full">Chatga kirish →</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- SECRET CHAT MODAL -->
+  <div id="secretModal" class="modal-backdrop">
+    <div class="glass-card auth-box">
+      <div class="secret-pill">🔒 End-to-End AES Shifrlash</div>
+      <h2>Maxfiy Chat Yaratish</h2>
+      <p class="muted">Suhbatdoshingiz bilan bir xil kalitni kiriting. Xabarlar taymer bo'yicha o'chib ketadi.</p>
+      <form id="secretForm">
+        <label>Maxfiy Kalit (Passphrase)</label>
+        <input type="password" id="secretKeyInput" placeholder="Masalan: sirlisoz123" required minlength="4" />
+        <label>Xabarlarni o'chirish taymeri</label>
+        <select id="secretTtlSelect">
+          <option value="10">10 soniya</option>
+          <option value="30" selected>30 soniya</option>
+          <option value="60">1 daqiqa</option>
+        </select>
+        <div class="modal-actions">
+          <button type="button" id="closeSecretModal" class="btn-ghost">Bekor qilish</button>
+          <button type="submit" class="btn-secret">Maxfiy Chatni Ochish</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-wrap"><span>⚡</span><span>NexChat</span></div>
+        <div class="header-actions">
+          <button id="themeToggle" class="icon-btn">🌓</button>
+          <button id="newSecretBtn" class="icon-btn secret-trigger" title="Maxfiy chat">🔒</button>
+        </div>
+      </div>
+      <div class="sidebar-search">
+        <input type="text" id="searchInput" placeholder="Qidirish..." />
+      </div>
+      <div class="chat-tabs">
+        <button class="tab-btn active" data-tab="all">Barchasi</button>
+        <button class="tab-btn" data-tab="public">Ommaviy</button>
+        <button class="tab-btn" data-tab="secret">Maxfiy 🔒</button>
+      </div>
+      <div class="chat-list-scroll" id="chatListContainer"></div>
+      <div class="user-footer">
+        <div class="avatar" id="myAvatar">U</div>
+        <div class="user-meta">
+          <div class="user-name" id="myUsername">Mehmon</div>
+          <div class="user-status"><span class="dot-online"></span> Onlayn</div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="chat-main">
+      <header class="chat-header">
+        <div class="chat-header-left">
+          <button id="mobileMenuBtn" class="icon-btn mobile-only">☰</button>
+          <div class="avatar header-avatar" id="activeChatAvatar">🌐</div>
+          <div>
+            <div class="chat-title-row">
+              <h2 id="activeChatTitle">Umumiy Muhokama</h2>
+              <span id="chatTypeBadge" class="badge badge-public">Ommaviy</span>
+            </div>
+            <p id="activeChatSubtitle" class="chat-sub">Barcha foydalanuvchilar uchun ochiq</p>
+          </div>
+        </div>
+        <div id="secretRoomControls" style="display:none;">
+          <span class="ttl-indicator" id="activeTtlLabel" style="color:var(--secret);font-size:0.85rem;font-weight:600;">⏱️ 30s</span>
+        </div>
+      </header>
+
+      <div id="e2eeBanner" class="e2ee-banner" style="display:none;">
+        🔐 <strong>Zero-Knowledge Shifrlash Faol:</strong> Xabarlar AES-GCM orqali shifrlanadi.
+      </div>
+
+      <section class="messages-area" id="messagesArea">
+        <div class="empty-state">Xabarlar tarixi bo'sh...</div>
+      </section>
+
+      <div id="replyBar" class="reply-bar" style="display:none;">
+        <div><span class="reply-label">Javob:</span><span id="replyText"></span></div>
+        <button id="cancelReplyBtn" class="icon-btn">✕</button>
+      </div>
+
+      <footer class="composer">
+        <div class="emoji-quick">
+          <button type="button" class="emoji-btn" data-emoji="👍">👍</button>
+          <button type="button" class="emoji-btn" data-emoji="🔥">🔥</button>
+          <button type="button" class="emoji-btn" data-emoji="❤️">❤️</button>
+        </div>
+        <form id="messageForm" class="composer-form">
+          <input type="text" id="messageInput" placeholder="Xabar yozing..." autocomplete="off" />
+          <button type="submit" class="btn-send">➤</button>
+        </form>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    // --- WEB CRYPTO E2EE MODULE ---
+    const NexCrypto = {
+      async getKey(pass, salt) {
+        const enc = new TextEncoder();
+        const base = await crypto.subtle.importKey('raw', enc.encode(pass), {name:'PBKDF2'}, false, ['deriveKey']);
+        return crypto.subtle.deriveKey({name:'PBKDF2', salt:enc.encode(salt), iterations:50000, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+      },
+      async encrypt(text, pass, salt) {
+        try {
+          const key = await this.getKey(pass, salt);
+          const iv = crypto.getRandomValues(new Uint8Array(12));
+          const enc = new TextEncoder();
+          const cipher = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, enc.encode(text));
+          return {
+            ciphertext: btoa(String.fromCharCode(...new Uint8Array(cipher))),
+            iv: btoa(String.fromCharCode(...iv))
+          };
+        } catch { return { ciphertext: text, iv: '' }; }
+      },
+      async decrypt(cipherB64, ivB64, pass, salt) {
+        try {
+          const key = await this.getKey(pass, salt);
+          const cipherBytes = Uint8Array.from(atob(cipherB64), c => c.charCodeAt(0));
+          const ivBytes = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
+          const dec = await crypto.subtle.decrypt({name:'AES-GCM', iv:ivBytes}, key, cipherBytes);
+          return new TextDecoder().decode(dec);
+        } catch {
+          return '🔒 [Shifrni ochib boʻlmadi: Kalit xato]';
+        }
+      }
+    };
+
+    // --- APP STATE & BROADCAST CHANNEL ---
+    const channel = new BroadcastChannel('nexchat_pro_channel');
+    const state = {
+      me: null,
+      color: '#6366f1',
+      publicRooms: [
+        { id: 'pub-general', name: 'Umumiy Muhokama', desc: 'Ochiq kanal', icon: '🌐' },
+        { id: 'pub-tech', name: 'IT & Dasturlash', desc: 'Kod va texnologiyalar', icon: '💻' }
+      ],
+      secretChats: [], // { id, name, key, ttl }
+      activeChat: { id: 'pub-general', type: 'public', name: 'Umumiy Muhokama', subtitle: 'Ochiq kanal', icon: '🌐' },
+      history: { 'pub-general': [], 'pub-tech': [] },
+      replyTo: null
+    };
+
+    // Color picker
+    document.querySelectorAll('.color-dot').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.color-dot').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.color = btn.dataset.color;
+      });
+    });
+
+    // Auth
+    document.getElementById('authForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('usernameInput').value.trim();
+      if (!name) return;
+      state.me = { id: 'u-' + Math.random().toString(36).substr(2,9), name, color: state.color };
+      
+      document.getElementById('myUsername').textContent = name;
+      const av = document.getElementById('myAvatar');
+      av.textContent = name[0].toUpperCase();
+      av.style.background = state.color;
+
+      document.getElementById('authModal').classList.remove('active');
+      renderSidebar();
+      loadActiveChat();
+    });
+
+    // Theme toggle
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      const h = document.documentElement;
+      h.setAttribute('data-theme', h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    });
+
+    // Mobile menu
+    document.getElementById('mobileMenuBtn').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('open');
+    });
+
+    // Secret modal
+    document.getElementById('newSecretBtn').addEventListener('click', () => document.getElementById('secretModal').classList.add('active'));
+    document.getElementById('closeSecretModal').addEventListener('click', () => document.getElementById('secretModal').classList.remove('active'));
+
+    document.getElementById('secretForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const key = document.getElementById('secretKeyInput').value;
+      const ttl = Number(document.getElementById('secretTtlSelect').value);
+      const roomId = 'sec-' + Math.random().toString(36).substr(2,6);
+      const name = `Maxfiy: #${roomId.slice(-4)}`;
+
+      state.secretChats.push({ id: roomId, name, key, ttl });
+      state.history[roomId] = [];
+      document.getElementById('secretModal').classList.remove('active');
+      document.getElementById('secretKeyInput').value = '';
+
+      selectChat({ id: roomId, type: 'secret', name, subtitle: `AES-256 Shifrlangan • ${ttl}s taymer`, icon: '🔒', key, ttl });
+      renderSidebar();
+    });
+
+    function renderSidebar() {
+      let html = '';
+      if (state.secretChats.length) {
+        html += `<div class="section-label">Maxfiy Chatlar</div>`;
+        state.secretChats.forEach(c => {
+          const act = state.activeChat.id === c.id ? 'active' : '';
+          html += `<div class="chat-item secret-item ${act}" onclick="openSecret('${c.id}')">
+            <div class="avatar" style="background:#10b981">🔒</div>
+            <div class="chat-item-info">
+              <div class="chat-item-name">${c.name}</div>
+              <div class="chat-item-desc">Taymer: ${c.ttl}s</div>
+            </div>
+          </div>`;
+        });
+      }
+
+      html += `<div class="section-label">Ommaviy Kanallar</div>`;
+      state.publicRooms.forEach(r => {
+        const act = state.activeChat.id === r.id ? 'active' : '';
+        html += `<div class="chat-item ${act}" onclick="openPublic('${r.id}')">
+          <div class="avatar" style="background:#334155">${r.icon}</div>
+          <div class="chat-item-info">
+            <div class="chat-item-name">${r.name}</div>
+            <div class="chat-item-desc">${r.desc}</div>
+          </div>
+        </div>`;
+      });
+
+      document.getElementById('chatListContainer').innerHTML = html;
+    }
+
+    window.openPublic = (id) => {
+      const r = state.publicRooms.find(x => x.id === id);
+      selectChat({ id: r.id, type: 'public', name: r.name, subtitle: r.desc, icon: r.icon });
+    };
+
+    window.openSecret = (id) => {
+      const c = state.secretChats.find(x => x.id === id);
+      selectChat({ id: c.id, type: 'secret', name: c.name, subtitle: `AES-256 Shifrlangan • ${c.ttl}s taymer`, icon: '🔒', key: c.key, ttl: c.ttl });
+    };
+
+    function selectChat(chat) {
+      state.activeChat = chat;
+      state.replyTo = null;
+      document.getElementById('replyBar').style.display = 'none';
+      document.getElementById('sidebar').classList.remove('open');
+
+      document.getElementById('activeChatTitle').textContent = chat.name;
+      document.getElementById('activeChatSubtitle').textContent = chat.subtitle;
+      document.getElementById('activeChatAvatar').textContent = chat.icon;
+      document.getElementById('activeChatAvatar').style.background = chat.type === 'secret' ? '#10b981' : '#334155';
+
+      const badge = document.getElementById('chatTypeBadge');
+      badge.className = 'badge badge-' + chat.type;
+      badge.textContent = chat.type === 'public' ? 'Ommaviy' : 'Maxfiy E2EE';
+
+      document.getElementById('e2eeBanner').style.display = chat.type === 'secret' ? 'block' : 'none';
+      document.getElementById('secretRoomControls').style.display = chat.type === 'secret' ? 'block' : 'none';
+      if (chat.ttl) document.getElementById('activeTtlLabel').textContent = `⏱️ ${chat.ttl}s`;
+
+      renderSidebar();
+      loadActiveChat();
+    }
+
+    async function loadActiveChat() {
+      const area = document.getElementById('messagesArea');
+      area.innerHTML = '';
+      const list = state.history[state.activeChat.id] || [];
+      if (!list.length) {
+        area.innerHTML = `<div class="empty-state">Hali xabarlar yo'q...</div>`;
+        return;
+      }
+      for (const m of list) {
+        await appendMessage(m, false);
+      }
+    }
+
+    // Send Message
+    document.getElementById('messageForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      if (!text || !state.me) return;
+
+      let msg = {
+        id: 'msg-' + Math.random().toString(36).substr(2,9),
+        roomId: state.activeChat.id,
+        type: state.activeChat.type,
+        senderId: state.me.id,
+        senderName: state.me.name,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        replyTo: state.replyTo
+      };
+
+      if (state.activeChat.type === 'secret') {
+        const encrypted = await NexCrypto.encrypt(text, state.activeChat.key, state.activeChat.id);
+        msg.ciphertext = encrypted.ciphertext;
+        msg.iv = encrypted.iv;
+        msg.ttl = state.activeChat.ttl;
+      } else {
+        msg.text = text;
+      }
+
+      if (!state.history[msg.roomId]) state.history[msg.roomId] = [];
+      state.history[msg.roomId].push(msg);
+
+      channel.postMessage({ type: 'NEW_MESSAGE', msg });
+      await appendMessage(msg, true);
+
+      input.value = '';
+      state.replyTo = null;
+      document.getElementById('replyBar').style.display = 'none';
+    });
+
+    // Listen across browser tabs
+    channel.onmessage = async (event) => {
+      if (event.data.type === 'NEW_MESSAGE') {
+        const msg = event.data.msg;
+        if (!state.history[msg.roomId]) state.history[msg.roomId] = [];
+        state.history[msg.roomId].push(msg);
+        if (msg.roomId === state.activeChat.id) {
+          await appendMessage(msg, true);
+        }
+      }
+    };
+
+    async function appendMessage(msg, scroll = true) {
+      const area = document.getElementById('messagesArea');
+      const empty = area.querySelector('.empty-state');
+      if (empty) empty.remove();
+
+      const isOwn = msg.senderId === state.me?.id;
+      let display = msg.text;
+
+      if (msg.type === 'secret' && msg.ciphertext) {
+        display = await NexCrypto.decrypt(msg.ciphertext, msg.iv, state.activeChat.key, msg.roomId);
+      }
+
+      const row = document.createElement('div');
+      row.className = `msg-row ${isOwn ? 'own' : 'other'} ${msg.type === 'secret' ? 'secret-msg' : ''}`;
+      row.id = `msg-${msg.id}`;
+
+      const replyHtml = msg.replyTo ? `<div class="reply-quote">↪ ${escapeHtml(msg.replyTo)}</div>` : '';
+      const ttlHtml = msg.ttl ? `<span class="ttl-countdown" id="ttl-${msg.id}">⏱️ ${msg.ttl}s</span>` : '';
+
+      row.innerHTML = `
+        <div class="msg-meta"><span>${escapeHtml(msg.senderName)}</span> • <span>${msg.timestamp}</span> ${ttlHtml}</div>
+        <div class="msg-bubble">${replyHtml}<div class="msg-body">${escapeHtml(display)}</div></div>
+        <div class="msg-footer">
+          <div class="msg-actions"><button onclick="setReply('${escapeAttr(display)}')">Javob berish</button></div>
+        </div>
+      `;
+      area.appendChild(row);
+      if (scroll) area.scrollTop = area.scrollHeight;
+
+      if (msg.type === 'secret' && msg.ttl) {
+        let left = Number(msg.ttl);
+        const timer = setInterval(() => {
+          left--;
+          const lbl = document.getElementById(`ttl-${msg.id}`);
+          if (lbl) lbl.textContent = `⏱️ ${left}s`;
+          if (left <= 0) {
+            clearInterval(timer);
+            row.style.opacity = '0';
+            setTimeout(() => row.remove(), 300);
+          }
+        }, 1000);
+      }
+    }
+
+    window.setReply = (txt) => {
+      state.replyTo = txt.slice(0, 50);
+      document.getElementById('replyText').textContent = state.replyTo;
+      document.getElementById('replyBar').style.display = 'flex';
+      document.getElementById('messageInput').focus();
+    };
+
+    document.getElementById('cancelReplyBtn').addEventListener('click', () => {
+      state.replyTo = null;
+      document.getElementById('replyBar').style.display = 'none';
+    });
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+    function escapeAttr(str) {
+      return String(str || '').replace(/'/g, "\\'").replace(/\n/g, ' ');
+    }
+  </script>
+</body>
+</html>
