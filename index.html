@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="uz" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d14">
+<meta name="referrer" content="no-referrer">
+<title>Web chat</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E💬%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true"><i></i><i></i><i></i></div>
+<div id="toasts" aria-live="polite"></div>
+
+<!-- ============ AUTH ============ -->
+<main id="auth" class="auth hidden">
+  <section class="auth-card">
+    <div class="brand">
+      <div class="logo">📥</div>
+      <div><h1>WEB Chat</h1><p>Tez. Chiroyli. Maxfiy.</p></div>
+    </div>
+
+    <div class="seg" role="tablist">
+      <button type="button" data-tab="login" class="on">Kirish</button>
+      <button type="button" data-tab="register">Ro'yxatdan o'tish</button>
+    </div>
+
+    <form id="loginForm" autocomplete="on" novalidate>
+      <label class="field"><span>Username</span>
+        <input class="inp" name="username" autocomplete="username" placeholder="masalan: ali_dev" required>
+      </label>
+      <label class="field"><span>Parol</span>
+        <input class="inp" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+      </label>
+      <p class="form-err" role="alert"></p>
+      <button class="btn primary block" type="submit">Kirish</button>
+    </form>
+
+    <form id="regForm" class="hidden" autocomplete="on" novalidate>
+      <label class="field"><span>Ism</span>
+        <input class="inp" name="name" autocomplete="name" maxlength="40" placeholder="Ismingiz" required>
+      </label>
+      <label class="field"><span>Username</span>
+        <input class="inp" name="username" autocomplete="username" maxlength="20" placeholder="a–z, 0–9, _" required>
+      </label>
+      <label class="field"><span>Parol</span>
+        <input class="inp" name="password" type="password" autocomplete="new-password" placeholder="kamida 8 belgi" required>
+        <div class="meter"><i></i></div>
+      </label>
+      <label class="field"><span>Parolni takrorlang</span>
+        <input class="inp" name="password2" type="password" autocomplete="new-password" placeholder="••••••••" required>
+      </label>
+      <p class="form-err" role="alert"></p>
+      <button class="btn primary block" type="submit">Akkaunt yaratish</button>
+    </form>
+
+    <p class="auth-note">🔐 Maxfiy chatlar <b>ECDH P-256 + AES-256-GCM</b> bilan shifrlanadi. Shaxsiy kalitingiz parolingiz bilan himoyalangan holda saqlanadi.</p>
+  </section>
+</main>
+
+<!-- ============ APP ============ -->
+<div id="app" class="app hidden">
+  <aside class="sidebar">
+    <header class="me" id="meBar"></header>
+    <div class="search"><span id="searchIco"></span>
+      <input id="chatSearch" type="search" placeholder="Chatlarni qidirish…" autocomplete="off">
+    </div>
+    <nav class="filters" id="filters">
+      <button data-f="all" class="on">Hammasi</button>
+      <button data-f="direct">Shaxsiy</button>
+      <button data-f="secret">🔒 Maxfiy</button>
+      <button data-f="group">Guruhlar</button>
+    </nav>
+    <div id="chatList" class="chat-list" role="list"></div>
+  </aside>
+
+  <section class="conversation" id="conv">
+    <div class="empty" id="emptyState">
+      <div class="empty-art">💬</div>
+      <h2>Suhbatni tanlang</h2>
+      <p>Chap tomondan chatni tanlang yoki yangi suhbat boshlang.<br>Maxfiy chatlar faqat siz va suhbatdoshingiz uchun ochiladi.</p>
+    </div>
+
+    <div class="conv-inner hidden" id="convInner">
+      <header class="conv-head" id="convHead"></header>
+      <div class="secret-banner hidden" id="secretBanner"></div>
+      <div class="search-bar hidden" id="msgSearchBar">
+        <input id="msgSearch" placeholder="Xabarlarda qidirish…" autocomplete="off">
+        <span id="msgSearchCount"></span>
+        <button class="icon-btn" id="msgSearchClose" title="Yopish"></button>
+      </div>
+      <div class="msgs" id="msgs"></div>
+      <button class="obscure-cover" id="obscureCover"><span>🔒</span><b>Maxfiy chat yashirildi</b><small>Davom etish uchun bosing</small></button>
+      <footer class="composer-wrap">
+        <div class="ctx-bar hidden" id="ctxBar"></div>
+        <div class="emoji-pop hidden" id="emojiPop"></div>
+        <div class="composer">
+          <button class="icon-btn" id="btnEmoji" title="Emoji"></button>
+          <button class="icon-btn" id="btnAttach" title="Rasm yuborish"></button>
+          <input type="file" id="fileIn" accept="image/*" hidden>
+          <textarea id="input" rows="1" maxlength="4000" placeholder="Xabar yozing…" aria-label="Xabar"></textarea>
+          <button class="send" id="btnSend" title="Yuborish"></button>
+        </div>
+      </footer>
+    </div>
+  </section>
+</div>
+
+<div id="modal-root"></div>
+<div id="ctx" class="ctx hidden"></div>
+<div id="fatal" class="fatal hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
