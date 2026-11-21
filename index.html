@@ -2,610 +2,891 @@
 <html lang="uz" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NexChat Pro — Zamonaviy Web Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>TeleWe Chat — Telegram & WeChat Style UI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-app: #0b0f19;
-      --bg-sidebar: rgba(17, 24, 39, 0.85);
-      --bg-surface: rgba(30, 41, 59, 0.65);
-      --bg-glass: rgba(15, 23, 42, 0.88);
-      --border: rgba(148, 163, 184, 0.14);
+      --bg-base: #07090e;
+      --bg-rail: #0c1018;
+      --bg-sidebar: rgba(16, 21, 32, 0.86);
+      --bg-chat: #090d14;
+      --bg-surface: rgba(30, 41, 59, 0.55);
+      --bg-surface-hover: rgba(51, 65, 85, 0.55);
+      --border: rgba(255, 255, 255, 0.07);
       --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --primary: #6366f1;
-      --primary-hover: #4f46e5;
-      --secret: #10b981;
-      --secret-bg: rgba(16, 185, 129, 0.14);
-      --msg-own: linear-gradient(135deg, #6366f1, #4f46e5);
-      --msg-other: rgba(30, 41, 59, 0.9);
-      --shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+      --text-sub: #94a3b8;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.35);
+      --wechat-green: #07c160;
+      --secret-emerald: #10b981;
+      --secret-bg: rgba(16, 185, 129, 0.12);
+      --bubble-own: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+      --bubble-other: #161d2c;
+      --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --smooth: cubic-bezier(0.22, 1, 0.36, 1);
     }
+
     [data-theme="light"] {
-      --bg-app: #f1f5f9;
-      --bg-sidebar: rgba(255, 255, 255, 0.9);
-      --bg-surface: rgba(241, 245, 249, 0.9);
-      --bg-glass: rgba(255, 255, 255, 0.95);
-      --border: rgba(15, 23, 42, 0.1);
+      --bg-base: #eef2f6;
+      --bg-rail: #1e293b;
+      --bg-sidebar: rgba(255, 255, 255, 0.92);
+      --bg-chat: #dfe7ef;
+      --bg-surface: rgba(241, 245, 249, 0.85);
+      --bg-surface-hover: rgba(226, 232, 240, 0.9);
+      --border: rgba(15, 23, 42, 0.08);
       --text-main: #0f172a;
-      --text-muted: #64748b;
-      --msg-other: #ffffff;
-      --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+      --text-sub: #64748b;
+      --bubble-own: linear-gradient(135deg, #07c160 0%, #059669 100%);
+      --bubble-other: #ffffff;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-    body { background: var(--bg-app); color: var(--text-main); height: 100vh; overflow: hidden; }
 
-    .app-shell { display: flex; height: 100vh; width: 100vw; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background: var(--bg-base); color: var(--text-main); height: 100dvh; overflow: hidden; }
 
-    /* SIDEBAR */
+    /* CUSTOM SCROLLBAR */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.22); border-radius: 99px; }
+
+    /* APP LAYOUT (WeChat Rail + Telegram Sidebar + Chat Canvas) */
+    .app-layout { display: flex; height: 100dvh; width: 100vw; position: relative; }
+
+    /* 1. WECHAT LEFT NAVIGATION RAIL */
+    .nav-rail {
+      width: 68px; background: var(--bg-rail); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 18px; z-index: 30;
+    }
+    .rail-avatar {
+      width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center;
+      font-weight: 800; color: #fff; cursor: pointer; position: relative;
+      transition: transform 0.3s var(--spring); box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+    }
+    .rail-avatar:hover { transform: scale(1.08); }
+    .rail-avatar::after {
+      content: ''; position: absolute; bottom: -2px; right: -2px; width: 12px; height: 12px;
+      background: var(--wechat-green); border: 2px solid var(--bg-rail); border-radius: 50%;
+    }
+    .rail-btn {
+      width: 44px; height: 44px; border-radius: 14px; border: none; background: transparent;
+      color: #94a3b8; font-size: 1.25rem; cursor: pointer; display: grid; place-items: center;
+      position: relative; transition: all 0.25s var(--spring);
+    }
+    .rail-btn:hover { background: rgba(255,255,255,0.08); color: #fff; transform: translateY(-2px); }
+    .rail-btn.active { background: var(--accent); color: #fff; box-shadow: 0 8px 20px var(--accent-glow); }
+    .rail-btn.secret-rail.active { background: var(--secret-emerald); box-shadow: 0 8px 20px rgba(16,185,129,0.35); }
+    .rail-spacer { flex: 1; }
+
+    /* 2. TELEGRAM SIDEBAR */
     .sidebar {
-      width: 340px; background: var(--bg-sidebar); backdrop-filter: blur(18px);
-      border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 20; transition: transform 0.25s ease;
+      width: 350px; background: var(--bg-sidebar); backdrop-filter: blur(24px);
+      border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 20;
+      transition: transform 0.35s var(--smooth);
     }
-    .sidebar-header { padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
-    .logo-wrap { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem; }
-    .header-actions { display: flex; gap: 8px; }
-    .icon-btn {
-      background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-main);
-      width: 36px; height: 36px; border-radius: 10px; cursor: pointer; display: grid; place-items: center; transition: 0.2s;
+    .sidebar-top { padding: 16px 18px 10px; display: flex; align-items: center; justify-content: space-between; }
+    .sidebar-top h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
+    .new-chat-fab {
+      background: var(--accent); color: #fff; border: none; padding: 8px 13px; border-radius: 11px;
+      font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;
+      transition: transform 0.25s var(--spring), box-shadow 0.25s;
     }
-    .icon-btn:hover { border-color: var(--primary); transform: translateY(-1px); }
-    .secret-trigger { border-color: rgba(16, 185, 129, 0.4); color: var(--secret); }
+    .new-chat-fab:hover { transform: scale(1.04); box-shadow: 0 6px 18px var(--accent-glow); }
 
-    .sidebar-search { padding: 12px 16px 8px; }
-    .sidebar-search input, input, select {
-      width: 100%; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border);
-      background: var(--bg-surface); color: var(--text-main); outline: none; font-size: 0.9rem;
+    /* TELEGRAM STORIES / MOMENTS BAR */
+    .stories-bar {
+      display: flex; gap: 12px; padding: 8px 18px 14px; overflow-x: auto; border-bottom: 1px solid var(--border);
     }
-    input:focus, select:focus { border-color: var(--primary); }
-
-    .chat-tabs { display: flex; gap: 6px; padding: 8px 16px 12px; border-bottom: 1px solid var(--border); }
-    .tab-btn {
-      flex: 1; padding: 7px 6px; border-radius: 9px; border: none; background: transparent;
-      color: var(--text-muted); font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: 0.2s;
+    .story-item { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; flex-shrink: 0; }
+    .story-ring {
+      width: 50px; height: 50px; border-radius: 50%; padding: 2.5px;
+      background: linear-gradient(45deg, #3b82f6, #10b981, #ec4899);
+      transition: transform 0.3s var(--spring);
     }
-    .tab-btn.active { background: var(--primary); color: #fff; }
-
-    .chat-list-scroll { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
-    .section-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); padding: 8px 8px 4px; font-weight: 600; }
-
-    .chat-item {
-      display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 14px; cursor: pointer; transition: 0.18s; border: 1px solid transparent;
+    .story-item:hover .story-ring { transform: scale(1.08) rotate(4deg); }
+    .story-inner {
+      width: 100%; height: 100%; border-radius: 50%; background: var(--bg-rail); border: 2px solid var(--bg-base);
+      display: grid; place-items: center; font-weight: 700; font-size: 0.9rem; color: #fff;
     }
-    .chat-item:hover { background: var(--bg-surface); }
-    .chat-item.active { background: rgba(99, 102, 241, 0.16); border-color: rgba(99, 102, 241, 0.4); }
-    .chat-item.secret-item.active { background: var(--secret-bg); border-color: rgba(16, 185, 129, 0.4); }
+    .story-name { font-size: 0.7rem; color: var(--text-sub); max-width: 54px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    .avatar {
-      width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; font-weight: 700; color: #fff; flex-shrink: 0; font-size: 1rem;
+    /* SEARCH & TELEGRAM FOLDERS */
+    .search-box { padding: 12px 16px 6px; position: relative; }
+    .search-box input {
+      width: 100%; padding: 10px 14px 10px 36px; border-radius: 12px; border: 1px solid var(--border);
+      background: var(--bg-surface); color: var(--text-main); font-size: 0.86rem; outline: none; transition: 0.2s;
     }
-    .chat-item-info { flex: 1; min-width: 0; }
-    .chat-item-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
-    .chat-item-name { font-weight: 600; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .chat-item-desc { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .search-box input:focus { border-color: var(--accent); background: var(--bg-surface-hover); }
+    .search-icon { position: absolute; left: 28px; top: 21px; font-size: 0.85rem; opacity: 0.6; }
 
-    .user-footer { padding: 14px 16px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
-    .user-name { font-weight: 600; font-size: 0.92rem; }
-    .user-status { font-size: 0.76rem; color: var(--secret); display: flex; align-items: center; gap: 6px; }
-    .dot-online { width: 8px; height: 8px; border-radius: 50%; background: var(--secret); display: inline-block; }
-
-    /* MAIN AREA */
-    .chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
-    .chat-header {
-      height: 70px; padding: 0 22px; border-bottom: 1px solid var(--border); background: var(--bg-sidebar);
-      backdrop-filter: blur(16px); display: flex; align-items: center; justify-content: space-between;
+    .folders-bar {
+      display: flex; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--border); overflow-x: auto;
     }
-    .chat-header-left { display: flex; align-items: center; gap: 14px; }
-    .chat-title-row { display: flex; align-items: center; gap: 10px; }
-    .chat-title-row h2 { font-size: 1.05rem; font-weight: 700; }
-    .chat-sub { font-size: 0.8rem; color: var(--text-muted); }
+    .folder-tab {
+      padding: 6px 12px; border-radius: 10px; border: none; background: transparent; color: var(--text-sub);
+      font-size: 0.8rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: 0.2s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .folder-tab.active { background: rgba(59, 130, 246, 0.16); color: var(--accent); }
+    .folder-pill { background: var(--accent); color: #fff; font-size: 0.66rem; padding: 1px 6px; border-radius: 99px; }
 
-    .badge { font-size: 0.7rem; padding: 3px 9px; border-radius: 99px; font-weight: 600; }
-    .badge-public { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
-    .badge-private { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
-    .badge-secret { background: var(--secret-bg); color: var(--secret); }
+    /* CHAT LIST ITEMS */
+    .chat-list { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+    .chat-card {
+      display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 15px;
+      cursor: pointer; transition: all 0.22s var(--smooth); position: relative; overflow: hidden;
+    }
+    .chat-card:hover { background: var(--bg-surface); transform: translateX(3px); }
+    .chat-card.active { background: var(--accent); color: #fff; box-shadow: 0 8px 22px var(--accent-glow); }
+    .chat-card.secret-card.active { background: linear-gradient(135deg, #059669, #10b981); box-shadow: 0 8px 22px rgba(16,185,129,0.3); }
+    .chat-card.active .chat-preview, .chat-card.active .chat-time { color: rgba(255,255,255,0.85); }
 
-    .e2ee-banner {
-      background: var(--secret-bg); color: var(--secret); padding: 9px 20px; font-size: 0.8rem;
-      border-bottom: 1px solid rgba(16, 185, 129, 0.25); text-align: center;
+    .c-avatar {
+      width: 48px; height: 48px; border-radius: 16px; display: grid; place-items: center;
+      font-weight: 800; font-size: 1.05rem; color: #fff; flex-shrink: 0; position: relative;
+    }
+    .c-online-dot {
+      position: absolute; bottom: -2px; right: -2px; width: 13px; height: 13px; border-radius: 50%;
+      background: var(--wechat-green); border: 2.5px solid var(--bg-base);
+    }
+    .c-body { flex: 1; min-width: 0; }
+    .c-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .c-title { font-weight: 700; font-size: 0.92rem; display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat-time { font-size: 0.72rem; color: var(--text-sub); }
+    .chat-preview { font-size: 0.8rem; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* 3. CHAT WORKSPACE */
+    .chat-stage {
+      flex: 1; display: flex; flex-direction: column; background: var(--bg-chat); position: relative; min-width: 0;
+    }
+    /* Animated Subtle Telegram Pattern Background */
+    .chat-stage::before {
+      content: ''; position: absolute; inset: 0; opacity: 0.04; pointer-events: none;
+      background-image: radial-gradient(#64748b 1.2px, transparent 1.2px); background-size: 22px 22px;
     }
 
-    .messages-area { flex: 1; overflow-y: auto; padding: 22px; display: flex; flex-direction: column; gap: 12px; }
-    .empty-state { margin: auto; color: var(--text-muted); font-size: 0.92rem; }
-
-    /* BUBBLES */
-    .msg-row { display: flex; flex-direction: column; max-width: 72%; animation: fadeIn 0.2s ease; }
-    .msg-row.own { align-self: flex-end; align-items: flex-end; }
-    .msg-row.other { align-self: flex-start; align-items: flex-start; }
-
-    .msg-meta { font-size: 0.74rem; color: var(--text-muted); margin-bottom: 4px; display: flex; gap: 8px; align-items: center; }
-    .msg-bubble {
-      padding: 11px 15px; border-radius: 16px; font-size: 0.93rem; line-height: 1.45; position: relative; word-break: break-word; box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    .stage-header {
+      height: 68px; padding: 0 20px; background: var(--bg-sidebar); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; z-index: 10;
     }
-    .msg-row.own .msg-bubble { background: var(--msg-own); color: #fff; border-bottom-right-radius: 4px; }
-    .msg-row.other .msg-bubble { background: var(--msg-other); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
-    .msg-row.secret-msg .msg-bubble { border: 1px solid rgba(16, 185, 129, 0.45); }
+    .stage-left { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+    .stage-title { font-weight: 800; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+    .stage-sub { font-size: 0.78rem; color: var(--text-sub); }
+    .stage-actions { display: flex; gap: 8px; }
 
-    .reply-quote { font-size: 0.78rem; padding: 5px 9px; margin-bottom: 6px; border-left: 3px solid #38bdf8; background: rgba(0, 0, 0, 0.18); border-radius: 6px; }
-    .msg-footer { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 0.72rem; color: var(--text-muted); }
-    .msg-actions button { background: transparent; border: none; color: inherit; cursor: pointer; font-size: 0.78rem; padding: 2px 5px; border-radius: 6px; }
-    .msg-actions button:hover { background: var(--bg-surface); }
-    .ttl-countdown { color: var(--secret); font-weight: 600; }
-
-    .reply-bar {
-      padding: 8px 20px; background: var(--bg-surface); border-top: 1px solid var(--border);
-      display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem;
+    .e2ee-strip {
+      background: var(--secret-bg); border-bottom: 1px solid rgba(16, 185, 129, 0.25);
+      color: var(--secret-emerald); padding: 8px 16px; font-size: 0.78rem; text-align: center;
+      backdrop-filter: blur(10px); z-index: 9; animation: slideDown 0.35s var(--smooth);
     }
-    .reply-label { color: var(--primary); font-weight: 600; margin-right: 6px; }
+
+    /* MESSAGES FEED */
+    .feed {
+      flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 10px; z-index: 5;
+    }
+
+    .msg-group {
+      display: flex; flex-direction: column; max-width: 70%;
+      animation: msgPop 0.36s var(--spring) forwards; transform-origin: bottom left;
+    }
+    .msg-group.own { align-self: flex-end; align-items: flex-end; transform-origin: bottom right; }
+    .msg-group.other { align-self: flex-start; align-items: flex-start; }
+
+    .msg-sender { font-size: 0.73rem; font-weight: 700; color: var(--accent); margin: 0 0 4px 6px; }
+    .bubble {
+      padding: 11px 15px 9px; border-radius: 18px; font-size: 0.92rem; line-height: 1.48;
+      position: relative; word-break: break-word; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
+      transition: transform 0.2s var(--spring);
+    }
+    .bubble:hover { transform: scale(1.01); }
+    .msg-group.own .bubble { background: var(--bubble-own); color: #fff; border-bottom-right-radius: 5px; }
+    .msg-group.other .bubble { background: var(--bubble-other); border: 1px solid var(--border); border-bottom-left-radius: 5px; }
+    .msg-group.secret-msg .bubble { border: 1px solid rgba(16, 185, 129, 0.5); }
+
+    .quote-box {
+      background: rgba(0, 0, 0, 0.2); border-left: 3px solid #38bdf8; padding: 5px 10px;
+      border-radius: 7px; font-size: 0.78rem; margin-bottom: 6px; opacity: 0.92;
+    }
+    .bubble-meta {
+      display: flex; align-items: center; justify-content: flex-end; gap: 6px;
+      font-size: 0.68rem; margin-top: 4px; opacity: 0.78;
+    }
+    .ttl-pill { color: #34d399; font-weight: 700; }
+
+    /* HOVER REACTION BAR (Telegram style) */
+    .msg-tools {
+      display: flex; gap: 4px; margin-top: 4px; opacity: 0; transform: translateY(-4px);
+      transition: all 0.2s var(--smooth);
+    }
+    .msg-group:hover .msg-tools { opacity: 1; transform: translateY(0); }
+    .tool-chip {
+      background: var(--bg-sidebar); border: 1px solid var(--border); color: var(--text-main);
+      padding: 3px 8px; border-radius: 99px; font-size: 0.74rem; cursor: pointer; transition: 0.15s;
+    }
+    .tool-chip:hover { transform: scale(1.15); border-color: var(--accent); }
+    .reactions-row { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+    .react-badge {
+      background: rgba(59, 130, 246, 0.18); border: 1px solid rgba(59, 130, 246, 0.35);
+      padding: 2px 8px; border-radius: 99px; font-size: 0.75rem; animation: msgPop 0.3s var(--spring);
+    }
 
     /* COMPOSER */
-    .composer {
-      padding: 12px 20px 16px; border-top: 1px solid var(--border); background: var(--bg-sidebar); display: flex; align-items: center; gap: 10px;
+    .typing-strip { height: 22px; padding: 0 24px; font-size: 0.76rem; color: var(--accent); font-weight: 600; z-index: 6; }
+    .reply-preview {
+      margin: 0 18px 6px; padding: 9px 14px; background: var(--bg-sidebar); border-left: 3px solid var(--accent);
+      border-radius: 12px; display: none; justify-content: space-between; align-items: center; z-index: 6;
+      animation: slideUp 0.25s var(--spring);
     }
-    .emoji-quick { display: flex; gap: 4px; }
-    .emoji-btn { background: transparent; border: none; font-size: 1.15rem; cursor: pointer; padding: 4px; border-radius: 8px; }
-    .emoji-btn:hover { background: var(--bg-surface); }
-    .composer-form { flex: 1; display: flex; gap: 10px; }
-    .btn-send {
-      background: var(--primary); color: #fff; border: none; width: 44px; height: 42px; border-radius: 12px; cursor: pointer; font-size: 1.05rem; transition: 0.2s;
+
+    .composer-wrap {
+      padding: 10px 18px 16px; display: flex; align-items: center; gap: 10px; z-index: 10;
     }
-    .btn-send:hover { background: var(--primary-hover); }
+    .input-pill {
+      flex: 1; background: var(--bg-sidebar); border: 1px solid var(--border); border-radius: 22px;
+      padding: 6px 14px; display: flex; align-items: center; gap: 8px; backdrop-filter: blur(20px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2); transition: border-color 0.2s;
+    }
+    .input-pill:focus-within { border-color: var(--accent); }
+    .input-pill input {
+      flex: 1; background: transparent; border: none; color: var(--text-main); font-size: 0.93rem; padding: 8px 4px; outline: none;
+    }
+    .emoji-trigger { background: transparent; border: none; font-size: 1.25rem; cursor: pointer; transition: transform 0.2s var(--spring); }
+    .emoji-trigger:hover { transform: scale(1.2); }
+
+    .send-circle {
+      width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--accent); color: #fff;
+      font-size: 1.15rem; cursor: pointer; display: grid; place-items: center; flex-shrink: 0;
+      box-shadow: 0 8px 20px var(--accent-glow); transition: transform 0.28s var(--spring), background 0.2s;
+    }
+    .send-circle:hover { transform: scale(1.08) rotate(-8deg); }
+    .send-circle:active { transform: scale(0.92); }
+
+    /* EMOJI POPOVER */
+    .emoji-popover {
+      position: absolute; bottom: 78px; left: 24px; background: var(--bg-sidebar); border: 1px solid var(--border);
+      backdrop-filter: blur(24px); padding: 10px; border-radius: 18px; display: none; gap: 6px; flex-wrap: wrap;
+      width: 250px; box-shadow: 0 16px 36px rgba(0,0,0,0.45); z-index: 50; animation: msgPop 0.25s var(--spring);
+    }
+    .emoji-popover.open { display: flex; }
+    .emoji-popover button { background: transparent; border: none; font-size: 1.35rem; padding: 5px; border-radius: 10px; cursor: pointer; }
+    .emoji-popover button:hover { background: var(--bg-surface); transform: scale(1.2); }
 
     /* MODALS */
-    .modal-backdrop {
-      position: fixed; inset: 0; background: rgba(2, 6, 23, 0.78); backdrop-filter: blur(10px);
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(3, 7, 18, 0.8); backdrop-filter: blur(14px);
       display: none; place-items: center; z-index: 100; padding: 16px;
     }
-    .modal-backdrop.active { display: grid; }
-    .glass-card {
-      background: var(--bg-glass); border: 1px solid var(--border); border-radius: 22px; padding: 28px; width: 100%; max-width: 420px; box-shadow: var(--shadow);
+    .modal-overlay.active { display: grid; }
+    .modal-card {
+      background: var(--bg-sidebar); border: 1px solid var(--border); border-radius: 26px;
+      padding: 28px; width: 100%; max-width: 410px; box-shadow: 0 25px 50px rgba(0,0,0,0.55);
+      animation: modalZoom 0.38s var(--spring);
     }
-    .auth-box h1, .auth-box h2 { margin: 10px 0 8px; font-size: 1.45rem; }
-    .auth-box .muted { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 18px; line-height: 1.5; }
-    .auth-box label { display: block; font-size: 0.8rem; font-weight: 600; margin: 12px 0 6px; color: var(--text-muted); }
-
-    .brand-badge, .secret-pill {
-      display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 4px 11px; border-radius: 99px; background: rgba(99, 102, 241, 0.2); color: #818cf8;
+    .modal-card h2 { font-size: 1.4rem; font-weight: 800; margin: 10px 0 6px; }
+    .modal-card p { font-size: 0.86rem; color: var(--text-sub); margin-bottom: 18px; line-height: 1.5; }
+    .field-label { display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-sub); margin: 12px 0 6px; }
+    .modal-input {
+      width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--border);
+      background: var(--bg-surface); color: var(--text-main); font-size: 0.92rem; outline: none;
     }
-    .secret-pill { background: var(--secret-bg); color: var(--secret); }
-
-    .color-picker { display: flex; gap: 10px; margin-bottom: 18px; }
-    .color-dot { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
-    .color-dot.active { border-color: #fff; transform: scale(1.12); }
-
-    .btn-primary, .btn-secret, .btn-ghost {
-      padding: 11px 18px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; font-size: 0.9rem;
+    .modal-input:focus { border-color: var(--accent); }
+    .swatches { display: flex; gap: 10px; margin-bottom: 18px; }
+    .swatch { width: 32px; height: 32px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; transition: 0.2s var(--spring); }
+    .swatch.active { border-color: #fff; transform: scale(1.15); }
+    .btn-full {
+      width: 100%; padding: 13px; border-radius: 14px; border: none; background: var(--accent);
+      color: #fff; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: 0.2s;
     }
-    .btn-primary { background: var(--primary); color: #fff; }
-    .btn-secret { background: var(--secret); color: #052e16; }
-    .btn-ghost { background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border); }
-    .btn-ghost.sm { padding: 6px 12px; font-size: 0.8rem; }
-    .w-full { width: 100%; margin-top: 8px; }
-    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
-    .mobile-only { display: none; }
+    .btn-full.secret-btn { background: var(--secret-emerald); color: #022c22; }
 
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-    @media (max-width: 768px) {
-      .sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); }
-      .sidebar.open { transform: translateX(0); }
-      .mobile-only { display: grid; }
-      .msg-row { max-width: 86%; }
+    /* KEYFRAMES */
+    @keyframes msgPop {
+      0% { opacity: 0; transform: translateY(14px) scale(0.92); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes modalZoom {
+      0% { opacity: 0; transform: scale(0.88) translateY(20px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-100%); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+    .mobile-back { display: none; }
+    @media (max-width: 820px) {
+      .nav-rail { width: 58px; }
+      .sidebar { position: fixed; left: 58px; top: 0; bottom: 0; width: calc(100vw - 58px); max-width: 360px; }
+      .sidebar.hidden-mobile { transform: translateX(-110%); pointer-events: none; }
+      .mobile-back { display: grid; }
+      .msg-group { max-width: 84%; }
     }
   </style>
 </head>
 <body>
 
-  <!-- AUTH MODAL -->
-  <div id="authModal" class="modal-backdrop active">
-    <div class="glass-card auth-box">
-      <div class="brand-badge">NexChat Pro (Static)</div>
-      <h1>Xush kelibsiz</h1>
-      <p class="muted">Ommaviy kanallar, shaxsiy DM va AES-256 shifrlangan maxfiy chatlar.</p>
+  <!-- 1. ONBOARDING MODAL -->
+  <div id="authModal" class="modal-overlay active">
+    <div class="modal-card">
+      <span style="background:rgba(59,130,246,0.18);color:#60a5fa;padding:4px 12px;border-radius:99px;font-size:0.75rem;font-weight:700;">TeleWe 3.0 • Next-Gen UI</span>
+      <h2>Suhbatni boshlang</h2>
+      <p>Telegram tezligi, WeChat qulayligi va AES-256 maxfiy chatlar bitta oynada.</p>
       <form id="authForm">
-        <label>Ismingiz</label>
-        <input type="text" id="usernameInput" placeholder="Masalan: Quvonchbek" required maxlength="24" autocomplete="off" />
-        <label>Profil rangi</label>
-        <div class="color-picker">
-          <button type="button" class="color-dot active" data-color="#6366f1" style="background:#6366f1"></button>
-          <button type="button" class="color-dot" data-color="#10b981" style="background:#10b981"></button>
-          <button type="button" class="color-dot" data-color="#f59e0b" style="background:#f59e0b"></button>
-          <button type="button" class="color-dot" data-color="#ec4899" style="background:#ec4899"></button>
+        <label class="field-label">Ismingiz yoki Nikneyms</label>
+        <input type="text" id="usernameInput" class="modal-input" placeholder="Masalan: Quvonchbek" required maxlength="22" autocomplete="off" />
+        <label class="field-label">Avatar rangi</label>
+        <div class="swatches">
+          <button type="button" class="swatch active" data-color="#3b82f6" style="background:#3b82f6"></button>
+          <button type="button" class="swatch" data-color="#07c160" style="background:#07c160"></button>
+          <button type="button" class="swatch" data-color="#8b5cf6" style="background:#8b5cf6"></button>
+          <button type="button" class="swatch" data-color="#ec4899" style="background:#ec4899"></button>
+          <button type="button" class="swatch" data-color="#f59e0b" style="background:#f59e0b"></button>
         </div>
-        <button type="submit" class="btn-primary w-full">Chatga kirish →</button>
+        <button type="submit" class="btn-full">Ilovaga kirish →</button>
       </form>
     </div>
   </div>
 
-  <!-- SECRET CHAT MODAL -->
-  <div id="secretModal" class="modal-backdrop">
-    <div class="glass-card auth-box">
-      <div class="secret-pill">🔒 End-to-End AES Shifrlash</div>
-      <h2>Maxfiy Chat Yaratish</h2>
-      <p class="muted">Suhbatdoshingiz bilan bir xil kalitni kiriting. Xabarlar taymer bo'yicha o'chib ketadi.</p>
-      <form id="secretForm">
-        <label>Maxfiy Kalit (Passphrase)</label>
-        <input type="password" id="secretKeyInput" placeholder="Masalan: sirlisoz123" required minlength="4" />
-        <label>Xabarlarni o'chirish taymeri</label>
-        <select id="secretTtlSelect">
-          <option value="10">10 soniya</option>
-          <option value="30" selected>30 soniya</option>
-          <option value="60">1 daqiqa</option>
+  <!-- 2. NEW SECRET / PRIVATE CHAT MODAL -->
+  <div id="newChatModal" class="modal-overlay">
+    <div class="modal-card">
+      <span style="background:var(--secret-bg);color:var(--secret-emerald);padding:4px 12px;border-radius:99px;font-size:0.75rem;font-weight:700;">🔒 End-to-End Shifrlash</span>
+      <h2>Yangi Maxfiy yoki Shaxsiy Chat</h2>
+      <p>Maxfiy chatda xabarlar AES-256-GCM kaliti bilan shifrlanadi va taymer tugagach izsiz o'chadi.</p>
+      <form id="createChatForm">
+        <label class="field-label">Chat turi</label>
+        <select id="chatModeSelect" class="modal-input">
+          <option value="secret">🔒 Maxfiy Chat (Shifrlangan + Taymer)</option>
+          <option value="private">👤 Shaxsiy Suhbat (1-ga-1 DM)</option>
         </select>
-        <div class="modal-actions">
-          <button type="button" id="closeSecretModal" class="btn-ghost">Bekor qilish</button>
-          <button type="submit" class="btn-secret">Maxfiy Chatni Ochish</button>
+
+        <label class="field-label">Suhbat nomi yoki Foydalanuvchi</label>
+        <input type="text" id="chatTargetName" class="modal-input" placeholder="Masalan: Sardor yoki Loyiha guruhi" required />
+
+        <div id="secretOptionsBox">
+          <label class="field-label">Maxfiy Kalit (Parol-so'z)</label>
+          <input type="password" id="secretPassInput" class="modal-input" placeholder="Suhbatdosh bilan kelishilgan kalit..." />
+
+          <label class="field-label">O'z-o'zini yo'q qilish taymeri</label>
+          <select id="secretTtlInput" class="modal-input">
+            <option value="10">10 soniya</option>
+            <option value="30" selected>30 soniya</option>
+            <option value="60">1 daqiqa</option>
+          </select>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:18px;">
+          <button type="button" id="closeModalBtn" class="btn-full" style="background:var(--bg-surface);color:var(--text-main);">Bekor</button>
+          <button type="submit" class="btn-full secret-btn">Yaratish</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- MAIN APP -->
-  <div class="app-shell">
+  <!-- MAIN APPLICATION -->
+  <div class="app-layout">
+    <!-- WECHAT NAVIGATION RAIL -->
+    <nav class="nav-rail">
+      <div class="rail-avatar" id="railAvatar" title="Profil">Q</div>
+      <button class="rail-btn active" data-folder="all" title="Barcha chatlar">💬</button>
+      <button class="rail-btn" data-folder="private" title="Shaxsiy chatlar">👤</button>
+      <button class="rail-btn" data-folder="public" title="Ommaviy kanallar">📢</button>
+      <button class="rail-btn secret-rail" data-folder="secret" title="Maxfiy chatlar">🔒</button>
+      <div class="rail-spacer"></div>
+      <button class="rail-btn" id="themeBtn" title="Tungi / Kunduzgi rejim">🌓</button>
+    </nav>
+
+    <!-- TELEGRAM SIDEBAR -->
     <aside class="sidebar" id="sidebar">
-      <div class="sidebar-header">
-        <div class="logo-wrap"><span>⚡</span><span>NexChat</span></div>
-        <div class="header-actions">
-          <button id="themeToggle" class="icon-btn">🌓</button>
-          <button id="newSecretBtn" class="icon-btn secret-trigger" title="Maxfiy chat">🔒</button>
-        </div>
+      <div class="sidebar-top">
+        <h1>TeleWe</h1>
+        <button class="new-chat-fab" id="openNewChatBtn">＋ Yangi</button>
       </div>
-      <div class="sidebar-search">
-        <input type="text" id="searchInput" placeholder="Qidirish..." />
+
+      <!-- STORIES / MOMENTS -->
+      <div class="stories-bar" id="storiesBar"></div>
+
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="Qidiruv (Chat, kanal, xabar)..." />
       </div>
-      <div class="chat-tabs">
-        <button class="tab-btn active" data-tab="all">Barchasi</button>
-        <button class="tab-btn" data-tab="public">Ommaviy</button>
-        <button class="tab-btn" data-tab="secret">Maxfiy 🔒</button>
+
+      <div class="folders-bar">
+        <button class="folder-tab active" data-folder="all">Barchasi <span class="folder-pill" id="countAll">4</span></button>
+        <button class="folder-tab" data-folder="public">Ommaviy</button>
+        <button class="folder-tab" data-folder="private">Shaxsiy</button>
+        <button class="folder-tab" data-folder="secret">Maxfiy 🔒</button>
       </div>
-      <div class="chat-list-scroll" id="chatListContainer"></div>
-      <div class="user-footer">
-        <div class="avatar" id="myAvatar">U</div>
-        <div class="user-meta">
-          <div class="user-name" id="myUsername">Mehmon</div>
-          <div class="user-status"><span class="dot-online"></span> Onlayn</div>
-        </div>
-      </div>
+
+      <div class="chat-list" id="chatList"></div>
     </aside>
 
-    <main class="chat-main">
-      <header class="chat-header">
-        <div class="chat-header-left">
-          <button id="mobileMenuBtn" class="icon-btn mobile-only">☰</button>
-          <div class="avatar header-avatar" id="activeChatAvatar">🌐</div>
+    <!-- CHAT WORKSPACE -->
+    <main class="chat-stage">
+      <header class="stage-header">
+        <div class="stage-left">
+          <button class="rail-btn mobile-back" id="mobileBackBtn" style="width:36px;height:36px;">←</button>
+          <div class="c-avatar" id="headerAvatar" style="width:42px;height:42px;border-radius:14px;background:#3b82f6;">🌐</div>
           <div>
-            <div class="chat-title-row">
-              <h2 id="activeChatTitle">Umumiy Muhokama</h2>
-              <span id="chatTypeBadge" class="badge badge-public">Ommaviy</span>
+            <div class="stage-title">
+              <span id="headerTitle">Umumiy Muhokama</span>
+              <span id="headerBadge" style="font-size:0.7rem;padding:2px 8px;border-radius:99px;background:rgba(59,130,246,0.2);color:#60a5fa;">Ommaviy</span>
             </div>
-            <p id="activeChatSubtitle" class="chat-sub">Barcha foydalanuvchilar uchun ochiq</p>
+            <div class="stage-sub" id="headerSub">1,248 a'zo • 142 onlayn</div>
           </div>
         </div>
-        <div id="secretRoomControls" style="display:none;">
-          <span class="ttl-indicator" id="activeTtlLabel" style="color:var(--secret);font-size:0.85rem;font-weight:600;">⏱️ 30s</span>
+        <div class="stage-actions">
+          <button class="rail-btn" id="quickSecretBtn" title="Maxfiy chat yaratish" style="width:38px;height:38px;">🔐</button>
         </div>
       </header>
 
-      <div id="e2eeBanner" class="e2ee-banner" style="display:none;">
-        🔐 <strong>Zero-Knowledge Shifrlash Faol:</strong> Xabarlar AES-GCM orqali shifrlanadi.
+      <div class="e2ee-strip" id="e2eeStrip" style="display:none;">
+        🛡️ <strong>Maxfiy rejim (End-to-End):</strong> Xabarlar brauzeringizda AES-256 bilan shifrlanadi va taymer tugagach yo'qoladi.
       </div>
 
-      <section class="messages-area" id="messagesArea">
-        <div class="empty-state">Xabarlar tarixi bo'sh...</div>
-      </section>
+      <section class="feed" id="feed"></section>
 
-      <div id="replyBar" class="reply-bar" style="display:none;">
-        <div><span class="reply-label">Javob:</span><span id="replyText"></span></div>
-        <button id="cancelReplyBtn" class="icon-btn">✕</button>
-      </div>
+      <div class="typing-strip" id="typingStrip"></div>
 
-      <footer class="composer">
-        <div class="emoji-quick">
-          <button type="button" class="emoji-btn" data-emoji="👍">👍</button>
-          <button type="button" class="emoji-btn" data-emoji="🔥">🔥</button>
-          <button type="button" class="emoji-btn" data-emoji="❤️">❤️</button>
+      <div class="reply-preview" id="replyPreview">
+        <div>
+          <span style="font-size:0.74rem;color:var(--accent);font-weight:700;">Javob berilmoqda:</span>
+          <div id="replyPreviewText" style="font-size:0.82rem;opacity:0.85;"></div>
         </div>
-        <form id="messageForm" class="composer-form">
-          <input type="text" id="messageInput" placeholder="Xabar yozing..." autocomplete="off" />
-          <button type="submit" class="btn-send">➤</button>
-        </form>
+        <button id="cancelReply" style="background:none;border:none;color:var(--text-main);cursor:pointer;font-size:1rem;">✕</button>
+      </div>
+
+      <!-- EMOJI PICKER POPOVER -->
+      <div class="emoji-popover" id="emojiPopover">
+        <button type="button">😀</button><button type="button">😂</button><button type="button">🔥</button><button type="button">❤️</button>
+        <button type="button">👍</button><button type="button">🚀</button><button type="button">👏</button><button type="button">🎉</button>
+        <button type="button">🤔</button><button type="button">😎</button><button type="button">💯</button><button type="button">⚡</button>
+      </div>
+
+      <footer class="composer-wrap">
+        <div class="input-pill">
+          <button type="button" class="emoji-trigger" id="emojiToggle">😊</button>
+          <input type="text" id="msgInput" placeholder="Xabar yozing..." autocomplete="off" />
+        </div>
+        <button type="button" class="send-circle" id="sendBtn" title="Yuborish">➤</button>
       </footer>
     </main>
   </div>
 
   <script>
-    // --- WEB CRYPTO E2EE MODULE ---
-    const NexCrypto = {
-      async getKey(pass, salt) {
+    // === 1. WEB CRYPTO AES-256-GCM ENGINE ===
+    const CryptoEngine = {
+      async derive(pass, salt) {
         const enc = new TextEncoder();
-        const base = await crypto.subtle.importKey('raw', enc.encode(pass), {name:'PBKDF2'}, false, ['deriveKey']);
-        return crypto.subtle.deriveKey({name:'PBKDF2', salt:enc.encode(salt), iterations:50000, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+        const keyMat = await crypto.subtle.importKey('raw', enc.encode(pass || 'default-key'), { name: 'PBKDF2' }, false, ['deriveKey']);
+        return crypto.subtle.deriveKey(
+          { name: 'PBKDF2', salt: enc.encode(salt), iterations: 60000, hash: 'SHA-256' },
+          keyMat, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+        );
       },
       async encrypt(text, pass, salt) {
-        try {
-          const key = await this.getKey(pass, salt);
-          const iv = crypto.getRandomValues(new Uint8Array(12));
-          const enc = new TextEncoder();
-          const cipher = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, enc.encode(text));
-          return {
-            ciphertext: btoa(String.fromCharCode(...new Uint8Array(cipher))),
-            iv: btoa(String.fromCharCode(...iv))
-          };
-        } catch { return { ciphertext: text, iv: '' }; }
+        const key = await this.derive(pass, salt);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(text));
+        return {
+          ciphertext: btoa(String.fromCharCode(...new Uint8Array(cipher))),
+          iv: btoa(String.fromCharCode(...iv))
+        };
       },
       async decrypt(cipherB64, ivB64, pass, salt) {
         try {
-          const key = await this.getKey(pass, salt);
-          const cipherBytes = Uint8Array.from(atob(cipherB64), c => c.charCodeAt(0));
+          const key = await this.derive(pass, salt);
+          const cBytes = Uint8Array.from(atob(cipherB64), c => c.charCodeAt(0));
           const ivBytes = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
-          const dec = await crypto.subtle.decrypt({name:'AES-GCM', iv:ivBytes}, key, cipherBytes);
+          const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBytes }, key, cBytes);
           return new TextDecoder().decode(dec);
         } catch {
-          return '🔒 [Shifrni ochib boʻlmadi: Kalit xato]';
+          return '🔒 [Shifrlangan xabar — kalit mos kelmadi]';
         }
       }
     };
 
-    // --- APP STATE & BROADCAST CHANNEL ---
-    const channel = new BroadcastChannel('nexchat_pro_channel');
+    // === 2. REAL-TIME MULTI-TAB SYNC (BroadcastChannel) ===
+    const bc = new BroadcastChannel('telewe_chat_bus');
+
     const state = {
-      me: null,
-      color: '#6366f1',
-      publicRooms: [
-        { id: 'pub-general', name: 'Umumiy Muhokama', desc: 'Ochiq kanal', icon: '🌐' },
-        { id: 'pub-tech', name: 'IT & Dasturlash', desc: 'Kod va texnologiyalar', icon: '💻' }
+      me: { id: 'me', name: 'Quvonchbek', color: '#3b82f6' },
+      folder: 'all',
+      search: '',
+      replyTo: null,
+      activeId: 'pub-1',
+      chats: [
+        { id: 'pub-1', type: 'public', name: 'Oʻzbekiston IT Hamjamiyati', sub: '2,410 aʼzo • Ommaviy kanal', icon: '🌐', color: '#2563eb', online: true, lastMsg: 'Yangi AI loyihalarni muhokama qilamiz!', time: '10:30' },
+        { id: 'pub-2', type: 'public', name: 'UI/UX & Frontend Trendlar', sub: '980 aʼzo • Dizayn kanali', icon: '🎨', color: '#8b5cf6', online: true, lastMsg: 'Glassmorphism va Spring animatsiyalar', time: '09:45' },
+        { id: 'prv-1', type: 'private', name: 'Azizbek (Full-Stack)', sub: 'oxirgi marta yaqinda onlayn', icon: 'A', color: '#07c160', online: true, lastMsg: 'Bugun uchrashamizmi?', time: '10:15' },
+        { id: 'sec-1', type: 'secret', name: 'Maxfiy: Loyiha Kalitlari', sub: 'AES-256 E2EE • 30s taymer', icon: '🔒', color: '#10b981', online: true, key: '1234', ttl: 30, lastMsg: 'Shifrlangan suhbat faol', time: 'Hozir' }
       ],
-      secretChats: [], // { id, name, key, ttl }
-      activeChat: { id: 'pub-general', type: 'public', name: 'Umumiy Muhokama', subtitle: 'Ochiq kanal', icon: '🌐' },
-      history: { 'pub-general': [], 'pub-tech': [] },
-      replyTo: null
+      stories: [
+        { name: 'Siz', icon: '＋', color: '#3b82f6' },
+        { name: 'Azizbek', icon: 'A', color: '#07c160' },
+        { name: 'Madina', icon: 'M', color: '#ec4899' },
+        { name: 'IT News', icon: '⚡', color: '#f59e0b' },
+        { name: 'Design', icon: '🎨', color: '#8b5cf6' }
+      ],
+      messages: {
+        'pub-1': [
+          { id: 'm1', senderId: 'sys1', senderName: 'Sardor', text: 'Salom hammaga! Yangi chat dizayni juda silliq chiqibdi 🔥', time: '10:28', reactions: { '🔥': 3, '👍': 2 } },
+          { id: 'm2', senderId: 'sys2', senderName: 'Nilufar', text: 'Telegram va WeChat funksiyalari birlashgani zoʻr gʻoya!', time: '10:30', reactions: { '❤️': 4 } }
+        ],
+        'pub-2': [
+          { id: 'm3', senderId: 'sys3', senderName: 'Behruz', text: 'Figma’dagi yangi komponentlar toʻplamini koʻrdingizmi?', time: '09:45', reactions: {} }
+        ],
+        'prv-1': [
+          { id: 'm4', senderId: 'prv-1', senderName: 'Azizbek', text: 'Salom! Yangi loyiha boʻyicha gaplashib olaylik.', time: '10:15', reactions: {} }
+        ],
+        'sec-1': []
+      }
     };
 
-    // Color picker
-    document.querySelectorAll('.color-dot').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.color-dot').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        state.color = btn.dataset.color;
-      });
+    // === 3. AUTH & INITIALIZATION ===
+    document.querySelectorAll('.swatch').forEach(s => {
+      s.onclick = () => {
+        document.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+        s.classList.add('active');
+        state.me.color = s.dataset.color;
+      };
     });
 
-    // Auth
-    document.getElementById('authForm').addEventListener('submit', (e) => {
+    document.getElementById('authForm').onsubmit = (e) => {
       e.preventDefault();
-      const name = document.getElementById('usernameInput').value.trim();
-      if (!name) return;
-      state.me = { id: 'u-' + Math.random().toString(36).substr(2,9), name, color: state.color };
-      
-      document.getElementById('myUsername').textContent = name;
-      const av = document.getElementById('myAvatar');
-      av.textContent = name[0].toUpperCase();
-      av.style.background = state.color;
-
+      const val = document.getElementById('usernameInput').value.trim();
+      if (!val) return;
+      state.me.id = 'user-' + Math.random().toString(36).slice(2, 8);
+      state.me.name = val;
+      const railAv = document.getElementById('railAvatar');
+      railAv.textContent = val[0].toUpperCase();
+      railAv.style.background = state.me.color;
       document.getElementById('authModal').classList.remove('active');
-      renderSidebar();
-      loadActiveChat();
-    });
+      renderStories();
+      renderChats();
+      selectChat(state.activeId);
+    };
 
-    // Theme toggle
-    document.getElementById('themeToggle').addEventListener('click', () => {
-      const h = document.documentElement;
-      h.setAttribute('data-theme', h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
-    });
+    // Theme Toggle
+    document.getElementById('themeBtn').onclick = () => {
+      const html = document.documentElement;
+      html.setAttribute('data-theme', html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    };
 
-    // Mobile menu
-    document.getElementById('mobileMenuBtn').addEventListener('click', () => {
-      document.getElementById('sidebar').classList.toggle('open');
-    });
-
-    // Secret modal
-    document.getElementById('newSecretBtn').addEventListener('click', () => document.getElementById('secretModal').classList.add('active'));
-    document.getElementById('closeSecretModal').addEventListener('click', () => document.getElementById('secretModal').classList.remove('active'));
-
-    document.getElementById('secretForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const key = document.getElementById('secretKeyInput').value;
-      const ttl = Number(document.getElementById('secretTtlSelect').value);
-      const roomId = 'sec-' + Math.random().toString(36).substr(2,6);
-      const name = `Maxfiy: #${roomId.slice(-4)}`;
-
-      state.secretChats.push({ id: roomId, name, key, ttl });
-      state.history[roomId] = [];
-      document.getElementById('secretModal').classList.remove('active');
-      document.getElementById('secretKeyInput').value = '';
-
-      selectChat({ id: roomId, type: 'secret', name, subtitle: `AES-256 Shifrlangan • ${ttl}s taymer`, icon: '🔒', key, ttl });
-      renderSidebar();
-    });
-
-    function renderSidebar() {
-      let html = '';
-      if (state.secretChats.length) {
-        html += `<div class="section-label">Maxfiy Chatlar</div>`;
-        state.secretChats.forEach(c => {
-          const act = state.activeChat.id === c.id ? 'active' : '';
-          html += `<div class="chat-item secret-item ${act}" onclick="openSecret('${c.id}')">
-            <div class="avatar" style="background:#10b981">🔒</div>
-            <div class="chat-item-info">
-              <div class="chat-item-name">${c.name}</div>
-              <div class="chat-item-desc">Taymer: ${c.ttl}s</div>
-            </div>
-          </div>`;
-        });
-      }
-
-      html += `<div class="section-label">Ommaviy Kanallar</div>`;
-      state.publicRooms.forEach(r => {
-        const act = state.activeChat.id === r.id ? 'active' : '';
-        html += `<div class="chat-item ${act}" onclick="openPublic('${r.id}')">
-          <div class="avatar" style="background:#334155">${r.icon}</div>
-          <div class="chat-item-info">
-            <div class="chat-item-name">${r.name}</div>
-            <div class="chat-item-desc">${r.desc}</div>
-          </div>
-        </div>`;
+    // Folders & Rail sync
+    function setFolder(folder) {
+      state.folder = folder;
+      document.querySelectorAll('.folder-tab, .rail-btn[data-folder]').forEach(el => {
+        el.classList.toggle('active', el.dataset.folder === folder);
       });
-
-      document.getElementById('chatListContainer').innerHTML = html;
+      renderChats();
     }
+    document.querySelectorAll('.folder-tab, .rail-btn[data-folder]').forEach(el => {
+      el.onclick = () => setFolder(el.dataset.folder);
+    });
 
-    window.openPublic = (id) => {
-      const r = state.publicRooms.find(x => x.id === id);
-      selectChat({ id: r.id, type: 'public', name: r.name, subtitle: r.desc, icon: r.icon });
+    document.getElementById('searchInput').oninput = (e) => {
+      state.search = e.target.value.toLowerCase();
+      renderChats();
     };
 
-    window.openSecret = (id) => {
-      const c = state.secretChats.find(x => x.id === id);
-      selectChat({ id: c.id, type: 'secret', name: c.name, subtitle: `AES-256 Shifrlangan • ${c.ttl}s taymer`, icon: '🔒', key: c.key, ttl: c.ttl });
+    // New Chat Modal
+    const newChatModal = document.getElementById('newChatModal');
+    const openModal = () => newChatModal.classList.add('active');
+    document.getElementById('openNewChatBtn').onclick = openModal;
+    document.getElementById('quickSecretBtn').onclick = openModal;
+    document.getElementById('closeModalBtn').onclick = () => newChatModal.classList.remove('active');
+
+    document.getElementById('chatModeSelect').onchange = (e) => {
+      document.getElementById('secretOptionsBox').style.display = e.target.value === 'secret' ? 'block' : 'none';
     };
 
-    function selectChat(chat) {
-      state.activeChat = chat;
-      state.replyTo = null;
-      document.getElementById('replyBar').style.display = 'none';
-      document.getElementById('sidebar').classList.remove('open');
-
-      document.getElementById('activeChatTitle').textContent = chat.name;
-      document.getElementById('activeChatSubtitle').textContent = chat.subtitle;
-      document.getElementById('activeChatAvatar').textContent = chat.icon;
-      document.getElementById('activeChatAvatar').style.background = chat.type === 'secret' ? '#10b981' : '#334155';
-
-      const badge = document.getElementById('chatTypeBadge');
-      badge.className = 'badge badge-' + chat.type;
-      badge.textContent = chat.type === 'public' ? 'Ommaviy' : 'Maxfiy E2EE';
-
-      document.getElementById('e2eeBanner').style.display = chat.type === 'secret' ? 'block' : 'none';
-      document.getElementById('secretRoomControls').style.display = chat.type === 'secret' ? 'block' : 'none';
-      if (chat.ttl) document.getElementById('activeTtlLabel').textContent = `⏱️ ${chat.ttl}s`;
-
-      renderSidebar();
-      loadActiveChat();
-    }
-
-    async function loadActiveChat() {
-      const area = document.getElementById('messagesArea');
-      area.innerHTML = '';
-      const list = state.history[state.activeChat.id] || [];
-      if (!list.length) {
-        area.innerHTML = `<div class="empty-state">Hali xabarlar yo'q...</div>`;
-        return;
-      }
-      for (const m of list) {
-        await appendMessage(m, false);
-      }
-    }
-
-    // Send Message
-    document.getElementById('messageForm').addEventListener('submit', async (e) => {
+    document.getElementById('createChatForm').onsubmit = (e) => {
       e.preventDefault();
-      const input = document.getElementById('messageInput');
-      const text = input.value.trim();
-      if (!text || !state.me) return;
+      const type = document.getElementById('chatModeSelect').value;
+      const name = document.getElementById('chatTargetName').value.trim();
+      const key = document.getElementById('secretPassInput').value || '1234';
+      const ttl = Number(document.getElementById('secretTtlInput').value) || 30;
+      const id = type.slice(0, 3) + '-' + Math.random().toString(36).slice(2, 7);
 
-      let msg = {
-        id: 'msg-' + Math.random().toString(36).substr(2,9),
-        roomId: state.activeChat.id,
-        type: state.activeChat.type,
-        senderId: state.me.id,
-        senderName: state.me.name,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        replyTo: state.replyTo
+      const newChat = {
+        id, type,
+        name: type === 'secret' ? `Maxfiy: ${name}` : name,
+        sub: type === 'secret' ? `AES-256 E2EE • ${ttl}s taymer` : 'Shaxsiy suhbat • Onlayn',
+        icon: type === 'secret' ? '🔒' : name[0].toUpperCase(),
+        color: type === 'secret' ? '#10b981' : '#3b82f6',
+        online: true, key, ttl,
+        lastMsg: 'Yangi suhbat boshlandi', time: 'Hozir'
       };
 
-      if (state.activeChat.type === 'secret') {
-        const encrypted = await NexCrypto.encrypt(text, state.activeChat.key, state.activeChat.id);
-        msg.ciphertext = encrypted.ciphertext;
-        msg.iv = encrypted.iv;
-        msg.ttl = state.activeChat.ttl;
-      } else {
-        msg.text = text;
-      }
-
-      if (!state.history[msg.roomId]) state.history[msg.roomId] = [];
-      state.history[msg.roomId].push(msg);
-
-      channel.postMessage({ type: 'NEW_MESSAGE', msg });
-      await appendMessage(msg, true);
-
-      input.value = '';
-      state.replyTo = null;
-      document.getElementById('replyBar').style.display = 'none';
-    });
-
-    // Listen across browser tabs
-    channel.onmessage = async (event) => {
-      if (event.data.type === 'NEW_MESSAGE') {
-        const msg = event.data.msg;
-        if (!state.history[msg.roomId]) state.history[msg.roomId] = [];
-        state.history[msg.roomId].push(msg);
-        if (msg.roomId === state.activeChat.id) {
-          await appendMessage(msg, true);
-        }
-      }
+      state.chats.unshift(newChat);
+      state.messages[id] = [];
+      newChatModal.classList.remove('active');
+      document.getElementById('chatTargetName').value = '';
+      renderChats();
+      selectChat(id);
     };
 
-    async function appendMessage(msg, scroll = true) {
-      const area = document.getElementById('messagesArea');
-      const empty = area.querySelector('.empty-state');
-      if (empty) empty.remove();
+    // === 4. RENDER STORIES & CHAT LIST ===
+    function renderStories() {
+      document.getElementById('storiesBar').innerHTML = state.stories.map(st => `
+        <div class="story-item" onclick="alert('${st.name} hikoyasi (Status) koʻrilmoqda ✨')">
+          <div class="story-ring"><div class="story-inner" style="background:${st.color}">${st.icon}</div></div>
+          <span class="story-name">${st.name}</span>
+        </div>
+      `).join('');
+    }
 
-      const isOwn = msg.senderId === state.me?.id;
-      let display = msg.text;
+    function renderChats() {
+      document.getElementById('countAll').textContent = state.chats.length;
+      const filtered = state.chats.filter(c => {
+        const matchFolder = state.folder === 'all' || c.type === state.folder;
+        const matchSearch = c.name.toLowerCase().includes(state.search) || c.lastMsg.toLowerCase().includes(state.search);
+        return matchFolder && matchSearch;
+      });
 
-      if (msg.type === 'secret' && msg.ciphertext) {
-        display = await NexCrypto.decrypt(msg.ciphertext, msg.iv, state.activeChat.key, msg.roomId);
+      document.getElementById('chatList').innerHTML = filtered.map(c => {
+        const isActive = c.id === state.activeId;
+        const isSecret = c.type === 'secret';
+        return `
+          <div class="chat-card ${isActive ? 'active' : ''} ${isSecret ? 'secret-card' : ''}" onclick="selectChat('${c.id}')">
+            <div class="c-avatar" style="background:${c.color}">
+              ${c.icon}
+              ${c.online ? '<span class="c-online-dot"></span>' : ''}
+            </div>
+            <div class="c-body">
+              <div class="c-top">
+                <span class="c-title">${esc(c.name)}</span>
+                <span class="chat-time">${c.time}</span>
+              </div>
+              <div class="chat-preview">${esc(c.lastMsg)}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.selectChat = async (id) => {
+      state.activeId = id;
+      state.replyTo = null;
+      document.getElementById('replyPreview').style.display = 'none';
+      document.getElementById('sidebar').classList.add('hidden-mobile');
+
+      const chat = state.chats.find(c => c.id === id);
+      if (!chat) return;
+
+      document.getElementById('headerTitle').textContent = chat.name;
+      document.getElementById('headerSub').textContent = chat.sub;
+      const hAv = document.getElementById('headerAvatar');
+      hAv.textContent = chat.icon;
+      hAv.style.background = chat.color;
+
+      const badge = document.getElementById('headerBadge');
+      if (chat.type === 'public') {
+        badge.textContent = 'Ommaviy';
+        badge.style.background = 'rgba(59,130,246,0.2)'; badge.style.color = '#60a5fa';
+      } else if (chat.type === 'private') {
+        badge.textContent = 'Shaxsiy';
+        badge.style.background = 'rgba(7,193,96,0.2)'; badge.style.color = '#34d399';
+      } else {
+        badge.textContent = `Maxfiy • ${chat.ttl}s`;
+        badge.style.background = 'var(--secret-bg)'; badge.style.color = 'var(--secret-emerald)';
+      }
+
+      document.getElementById('e2eeStrip').style.display = chat.type === 'secret' ? 'block' : 'none';
+      renderChats();
+      await renderMessages();
+    };
+
+    document.getElementById('mobileBackBtn').onclick = () => {
+      document.getElementById('sidebar').classList.remove('hidden-mobile');
+    };
+
+    // === 5. MESSAGES, REACTIONS & SELF-DESTRUCT ===
+    async function renderMessages() {
+      const feed = document.getElementById('feed');
+      feed.innerHTML = '';
+      const list = state.messages[state.activeId] || [];
+      for (const m of list) {
+        await drawMessage(m, false);
+      }
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    async function drawMessage(m, animate = true) {
+      const feed = document.getElementById('feed');
+      const chat = state.chats.find(c => c.id === m.roomId || c.id === state.activeId);
+      const isOwn = m.senderId === state.me.id;
+
+      let text = m.text;
+      if (m.ciphertext && chat) {
+        text = await CryptoEngine.decrypt(m.ciphertext, m.iv, chat.key, chat.id);
       }
 
       const row = document.createElement('div');
-      row.className = `msg-row ${isOwn ? 'own' : 'other'} ${msg.type === 'secret' ? 'secret-msg' : ''}`;
-      row.id = `msg-${msg.id}`;
+      row.className = `msg-group ${isOwn ? 'own' : 'other'} ${chat?.type === 'secret' ? 'secret-msg' : ''}`;
+      if (!animate) row.style.animation = 'none';
+      row.id = `msg-${m.id}`;
 
-      const replyHtml = msg.replyTo ? `<div class="reply-quote">↪ ${escapeHtml(msg.replyTo)}</div>` : '';
-      const ttlHtml = msg.ttl ? `<span class="ttl-countdown" id="ttl-${msg.id}">⏱️ ${msg.ttl}s</span>` : '';
+      const reactHtml = Object.entries(m.reactions || {}).map(([em, cnt]) => `<span class="react-badge">${em} ${cnt}</span>`).join('');
 
       row.innerHTML = `
-        <div class="msg-meta"><span>${escapeHtml(msg.senderName)}</span> • <span>${msg.timestamp}</span> ${ttlHtml}</div>
-        <div class="msg-bubble">${replyHtml}<div class="msg-body">${escapeHtml(display)}</div></div>
-        <div class="msg-footer">
-          <div class="msg-actions"><button onclick="setReply('${escapeAttr(display)}')">Javob berish</button></div>
+        ${!isOwn ? `<div class="msg-sender">${esc(m.senderName)}</div>` : ''}
+        <div class="bubble">
+          ${m.replyTo ? `<div class="quote-box">↪ ${esc(m.replyTo)}</div>` : ''}
+          <div>${esc(text)}</div>
+          <div class="bubble-meta">
+            ${m.ttl ? `<span class="ttl-pill" id="ttl-${m.id}">⏱️ ${m.ttl}s</span>` : ''}
+            <span>${m.time}</span>
+            ${isOwn ? '<span>✓✓</span>' : ''}
+          </div>
+        </div>
+        <div class="reactions-row" id="reacts-${m.id}">${reactHtml}</div>
+        <div class="msg-tools">
+          <button class="tool-chip" onclick="replyMsg('${escAttr(text)}')">↩ Javob</button>
+          <button class="tool-chip" onclick="reactMsg('${m.id}','❤️')">❤️</button>
+          <button class="tool-chip" onclick="reactMsg('${m.id}','🔥')">🔥</button>
+          <button class="tool-chip" onclick="reactMsg('${m.id}','👍')">👍</button>
         </div>
       `;
-      area.appendChild(row);
-      if (scroll) area.scrollTop = area.scrollHeight;
 
-      if (msg.type === 'secret' && msg.ttl) {
-        let left = Number(msg.ttl);
+      feed.appendChild(row);
+      feed.scrollTop = feed.scrollHeight;
+
+      if (m.ttl) {
+        let sec = Number(m.ttl);
         const timer = setInterval(() => {
-          left--;
-          const lbl = document.getElementById(`ttl-${msg.id}`);
-          if (lbl) lbl.textContent = `⏱️ ${left}s`;
-          if (left <= 0) {
+          sec--;
+          const el = document.getElementById(`ttl-${m.id}`);
+          if (el) el.textContent = `⏱️ ${sec}s`;
+          if (sec <= 0) {
             clearInterval(timer);
+            row.style.transition = 'all 0.35s ease';
             row.style.opacity = '0';
-            setTimeout(() => row.remove(), 300);
+            row.style.transform = 'scale(0.8)';
+            setTimeout(() => row.remove(), 350);
           }
         }, 1000);
       }
     }
 
-    window.setReply = (txt) => {
-      state.replyTo = txt.slice(0, 50);
-      document.getElementById('replyText').textContent = state.replyTo;
-      document.getElementById('replyBar').style.display = 'flex';
-      document.getElementById('messageInput').focus();
+    async function sendMessage() {
+      const input = document.getElementById('msgInput');
+      const val = input.value.trim();
+      if (!val) return;
+
+      const chat = state.chats.find(c => c.id === state.activeId);
+      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      const msg = {
+        id: 'm-' + Math.random().toString(36).slice(2, 9),
+        roomId: chat.id,
+        senderId: state.me.id,
+        senderName: state.me.name,
+        time: now,
+        replyTo: state.replyTo,
+        reactions: {}
+      };
+
+      if (chat.type === 'secret') {
+        const enc = await CryptoEngine.encrypt(val, chat.key, chat.id);
+        msg.ciphertext = enc.ciphertext;
+        msg.iv = enc.iv;
+        msg.ttl = chat.ttl;
+        chat.lastMsg = '🔒 Shifrlangan xabar';
+      } else {
+        msg.text = val;
+        chat.lastMsg = val;
+      }
+      chat.time = now;
+
+      if (!state.messages[chat.id]) state.messages[chat.id] = [];
+      state.messages[chat.id].push(msg);
+
+      bc.postMessage({ kind: 'MSG', msg });
+      await drawMessage(msg, true);
+      renderChats();
+
+      input.value = '';
+      state.replyTo = null;
+      document.getElementById('replyPreview').style.display = 'none';
+
+      // Demo smart reply in private chat
+      if (chat.id === 'prv-1') {
+        document.getElementById('typingStrip').textContent = 'Azizbek yozmoqda...';
+        setTimeout(async () => {
+          document.getElementById('typingStrip').textContent = '';
+          const reply = {
+            id: 'm-' + Math.random().toString(36).slice(2, 9),
+            roomId: 'prv-1', senderId: 'prv-1', senderName: 'Azizbek',
+            text: 'Ajoyib! Kodlar va animatsiyalar juda tez ishlayapti 👍',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            reactions: {}
+          };
+          state.messages['prv-1'].push(reply);
+          chat.lastMsg = reply.text;
+          if (state.activeId === 'prv-1') await drawMessage(reply, true);
+          renderChats();
+        }, 1200);
+      }
+    }
+
+    document.getElementById('sendBtn').onclick = sendMessage;
+    document.getElementById('msgInput').onkeydown = (e) => {
+      if (e.key === 'Enter') sendMessage();
     };
 
-    document.getElementById('cancelReplyBtn').addEventListener('click', () => {
-      state.replyTo = null;
-      document.getElementById('replyBar').style.display = 'none';
+    // Multi-tab listener
+    bc.onmessage = async (e) => {
+      if (e.data.kind === 'MSG') {
+        const msg = e.data.msg;
+        if (!state.messages[msg.roomId]) state.messages[msg.roomId] = [];
+        state.messages[msg.roomId].push(msg);
+        const chat = state.chats.find(c => c.id === msg.roomId);
+        if (chat) {
+          chat.lastMsg = msg.ciphertext ? '🔒 Shifrlangan xabar' : msg.text;
+          chat.time = msg.time;
+          renderChats();
+        }
+        if (msg.roomId === state.activeId) await drawMessage(msg, true);
+      }
+    };
+
+    // Emoji Popover
+    const emojiPop = document.getElementById('emojiPopover');
+    document.getElementById('emojiToggle').onclick = () => emojiPop.classList.toggle('open');
+    emojiPop.querySelectorAll('button').forEach(b => {
+      b.onclick = () => {
+        const inp = document.getElementById('msgInput');
+        inp.value += b.textContent;
+        inp.focus();
+      };
     });
 
-    function escapeHtml(str) {
-      return String(str || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    // Reply & Reactions
+    window.replyMsg = (txt) => {
+      state.replyTo = txt.slice(0, 55);
+      document.getElementById('replyPreviewText').textContent = state.replyTo;
+      document.getElementById('replyPreview').style.display = 'flex';
+      document.getElementById('msgInput').focus();
+    };
+    document.getElementById('cancelReply').onclick = () => {
+      state.replyTo = null;
+      document.getElementById('replyPreview').style.display = 'none';
+    };
+
+    window.reactMsg = (msgId, emoji) => {
+      const msg = (state.messages[state.activeId] || []).find(m => m.id === msgId);
+      if (!msg) return;
+      msg.reactions[emoji] = (msg.reactions[emoji] || 0) + 1;
+      const box = document.getElementById(`reacts-${msgId}`);
+      if (box) {
+        box.innerHTML = Object.entries(msg.reactions).map(([em, cnt]) => `<span class="react-badge">${em} ${cnt}</span>`).join('');
+      }
+    };
+
+    function esc(s) {
+      return String(s || '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
     }
-    function escapeAttr(str) {
-      return String(str || '').replace(/'/g, "\\'").replace(/\n/g, ' ');
+    function escAttr(s) {
+      return String(s || '').replace(/'/g, "\\'").replace(/\n/g, ' ');
     }
   </script>
 </body>
